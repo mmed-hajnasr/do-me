@@ -1,0 +1,5 @@
+[keybindings.Global]
+"<q>" = "Quit"         # Quit the application
+"<ctrl-d>" = "Quit"    # Another way to quit
+"<ctrl-c>" = "Quit"    # Yet another way to quit
+"<ctrl-z>" = "Suspend" # Suspend the application
