@@ -5,6 +5,8 @@ use color_eyre::Result;
 use crate::app::App;
 
 mod action;
+mod database_ops;
+mod structs;
 mod app;
 mod cli;
 mod components;

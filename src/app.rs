@@ -1,21 +1,25 @@
-use std::collections::HashMap;
-
 use color_eyre::Result;
-use crossterm::event::KeyEvent;
-use ratatui::prelude::Rect;
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::{
+    layout::{Constraint, Layout},
+    prelude::Rect,
+};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
 use crate::{
     action::Action,
-    components::{fps::FpsCounter, home::Home, Component},
+    components::{fps::FpsCounter, workspaces::WorkspacesComponent, Component},
     config::Config,
+    database_ops::DatabaseOperations,
     tui::{Event, Tui},
 };
 
 pub struct App {
     config: Config,
+    database: DatabaseOperations,
     tick_rate: f64,
     frame_rate: f64,
     components: HashMap<ComponentId, Box<dyn Component>>,
@@ -31,8 +35,12 @@ pub struct App {
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ComponentId {
     #[default]
-    Home,
+    Workspaces,
+    Tasks,
     FpsCounter,
+    DatabaseGet,
+    DatabaseSetTasks,
+    DatabaseSetWorkspaces,
     All,
     Focused,
 }
@@ -42,22 +50,28 @@ pub enum Mode {
     #[default]
     Navigation,
     Global,
+    Insert,
 }
 
 impl App {
     pub fn new(tick_rate: f64, frame_rate: f64) -> Result<Self> {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let mut components: HashMap<ComponentId, Box<dyn Component>> = HashMap::new();
-        components.insert(ComponentId::Home, Box::new(Home::new()));
+        let config = Config::new()?;
         components.insert(ComponentId::FpsCounter, Box::new(FpsCounter::new()));
+        components.insert(
+            ComponentId::Workspaces,
+            Box::new(WorkspacesComponent::new()),
+        );
         Ok(Self {
+            database: DatabaseOperations::new(config.config.data_dir.join("do_me.db")),
             tick_rate,
             frame_rate,
             components,
             focused: ComponentId::default(),
             should_quit: false,
             should_suspend: false,
-            config: Config::new()?,
+            config,
             mode: Mode::default(),
             last_tick_key_events: Vec::new(),
             action_tx,
@@ -118,6 +132,12 @@ impl App {
     }
 
     fn handle_key_event(&mut self, key: KeyEvent) -> Result<()> {
+        // if editing mode send all keypresses to the focused component.
+        if self.mode == Mode::Insert {
+            self.components.get_mut(&self.focused).unwrap().update(Action::SendKeyEvent(key))?;
+            return Ok(());
+        }
+
         let global_keymap = self
             .config
             .keybindings
@@ -173,8 +193,6 @@ impl App {
 
     fn handle_actions(&mut self, tui: &mut Tui) -> Result<()> {
         while let Ok(action) = self.action_rx.try_recv() {
-            assert_ne!(&self.focused, &ComponentId::All);
-            assert_ne!(&self.focused, &ComponentId::Focused);
             if action != Action::Tick && action != Action::Render {
                 debug!("{action:?}");
             }
@@ -192,6 +210,8 @@ impl App {
                         Action::ClearScreen => tui.terminal.clear()?,
                         Action::Resize(w, h) => self.handle_resize(tui, w, h)?,
                         Action::Render => self.render(tui)?,
+                        Action::EnterInsertMode => self.mode = Mode::Insert,
+                        Action::LeaveInsertMode => self.mode = Mode::Navigation,
                         _ => {}
                     }
                     for component in self.components.values_mut() {
@@ -205,6 +225,28 @@ impl App {
                         error!("Component not found: {:?}", &self.focused);
                     }
                 }
+                ComponentId::DatabaseSetTasks => {
+                    self.database.handle_update_actions(action.clone())?;
+                    //TODO: get worksapce id.
+                    let workspace_id = 1;
+                    self.action_tx
+                        .send(Action::RequestTasksData(workspace_id))?;
+                }
+                ComponentId::DatabaseSetWorkspaces => {
+                    self.database.handle_update_actions(action.clone())?;
+                    self.action_tx.send(Action::RequestWorkspacesData)?;
+                }
+                ComponentId::DatabaseGet => match action {
+                    Action::RequestTasksData(workspace_id) => {
+                        let tasks = self.database.get_tasks(workspace_id)?;
+                        self.action_tx.send(Action::NewTasksData(tasks))?;
+                    }
+                    Action::RequestWorkspacesData => {
+                        let workspaces = self.database.get_workspaces()?;
+                        self.action_tx.send(Action::NewWorkspacesData(workspaces))?;
+                    }
+                    _ => {}
+                },
                 _ => {
                     if let Some(component) = self.components.get_mut(&target) {
                         component.update(action.clone())?;
@@ -225,13 +267,25 @@ impl App {
 
     fn render(&mut self, tui: &mut Tui) -> Result<()> {
         tui.draw(|frame| {
-            for component in self.components.values_mut() {
-                if let Err(err) = component.draw(frame, frame.size()) {
+            let area = frame.size();
+            let [workspace_area, task_area] =
+                Layout::horizontal([Constraint::Length(20), Constraint::Fill(1)]).areas(area);
+            for (id, component) in &mut self.components {
+                let area = match id {
+                    ComponentId::Workspaces => workspace_area,
+                    ComponentId::Tasks => task_area,
+                    _ => continue,
+                };
+
+                if let Err(err) = component.draw(frame, area) {
                     let _ = self
                         .action_tx
                         .send(Action::Error(format!("Failed to draw: {:?}", err)));
                 }
             }
+
+            let fps = self.components.get_mut(&ComponentId::FpsCounter).unwrap();
+            let _ = fps.draw(frame, area);
         })?;
         Ok(())
     }

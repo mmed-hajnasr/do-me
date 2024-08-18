@@ -3,3 +3,12 @@
 "<ctrl-d>" = "Quit"    # Another way to quit
 "<ctrl-c>" = "Quit"    # Yet another way to quit
 "<ctrl-z>" = "Suspend" # Suspend the application
+[keybindings.Navigation]
+"<j>" = "GoDown"           # Move the cursor down
+"<k>" = "GoUp"             # Move the cursor up
+"<g>" = "GoToTop"          # Move the cursor to the top
+"<shift-g>" = "GoToBottom" # Move the cursor to the bottom
+"<i>" = "AddItemBefore"    # Add an item before the current one
+"<a>" = "AddItemAfter"     # Add an item after the current one
+"<d>" = "DeleteItem"       # Delete the current item
+"<e>" = "EditItem"         # Edit the current item

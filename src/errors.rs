@@ -1,7 +1,33 @@
 use std::env;
 
 use color_eyre::Result;
+use std::fmt;
 use tracing::error;
+
+#[derive(Debug)]
+pub enum DoMeError {
+    TaskNotFound(String),
+    WorkspaceNotFound(String),
+    TaskAlreadyExists(String),
+    WorkspaceAlreadyExists(String),
+}
+
+impl fmt::Display for DoMeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DoMeError::TaskNotFound(task) => write!(f, "The task {} was not found", task),
+            DoMeError::WorkspaceNotFound(workspace) => {
+                write!(f, "The workspace {} was not found", workspace)
+            }
+            DoMeError::TaskAlreadyExists(task) => write!(f, "The task {} already exists", task),
+            DoMeError::WorkspaceAlreadyExists(workspace) => {
+                write!(f, "The workspace {} already exists", workspace)
+            }
+        }
+    }
+}
+
+impl std::error::Error for DoMeError {}
 
 pub fn init() -> Result<()> {
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()

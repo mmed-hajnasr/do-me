@@ -18,10 +18,10 @@
 
           rust-analyzer
           clippy
-          taplo
           rustfmt
 
           pkg-config
+          sqlite
           lldb
         ];
 

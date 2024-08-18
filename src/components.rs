@@ -6,6 +6,8 @@ use crate::{action::Action, config::Config};
 
 pub mod fps;
 pub mod home;
+pub mod tasks;
+pub mod workspaces;
 
 /// `Component` is a trait that represents a visual and interactive element of the user interface.
 ///
