@@ -1,18 +1,25 @@
+use super::Component;
+use crate::{
+    action::Action,
+    config::{Config, StyleName},
+    structs::*,
+};
 use color_eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{prelude::*, widgets::*};
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::Component;
-use crate::{action::Action, structs::*};
-
 #[derive(Default)]
 pub struct WorkspacesComponent {
     command_tx: Option<UnboundedSender<Action>>,
+    config: Config,
     list: WorkspacesList,
     input: String,
     character_index: usize,
     mode: Mode,
+    sorter: WorkspaceSorter,
+    is_focused: bool,
+    highlighted_item: (Option<usize>, String),
 }
 
 #[derive(Default, PartialEq, Eq)]
@@ -20,6 +27,7 @@ enum Mode {
     #[default]
     Normal,
     Insert(i32),
+    Edit(i32),
 }
 
 #[derive(Default)]
@@ -28,19 +36,21 @@ struct WorkspacesList {
     state: ListState,
 }
 
-impl From<&Workspace> for ListItem<'_> {
-    fn from(workspace: &Workspace) -> Self {
-        let line = Line::styled(workspace.name.clone(), Style::default());
-        ListItem::new(line)
-    }
-}
-
 impl WorkspacesComponent {
     pub fn new() -> Self {
         Self::default()
     }
 
-    fn select_next(&mut self) {
+    fn send_workspace_id(&self) -> Result<()> {
+        if let Some(selected) = self.list.state.selected() {
+            let workspace_id = self.list.items[selected].id;
+            let command_tx = self.command_tx.as_ref().unwrap();
+            command_tx.send(Action::SelectWorkspace(workspace_id))?;
+        }
+        Ok(())
+    }
+
+    fn select_next(&mut self) -> Result<()> {
         match self.list.state.selected_mut() {
             Some(selected) => {
                 *selected += 1;
@@ -50,9 +60,11 @@ impl WorkspacesComponent {
                 self.list.state.select(Some(0));
             }
         }
+        self.send_workspace_id()?;
+        Ok(())
     }
 
-    fn select_previous(&mut self) {
+    fn select_previous(&mut self) -> Result<()> {
         match self.list.state.selected_mut() {
             Some(selected) => {
                 if *selected == 0 {
@@ -65,14 +77,51 @@ impl WorkspacesComponent {
                 self.list.state.select(Some(0));
             }
         }
+        self.send_workspace_id()?;
+        Ok(())
     }
 
-    fn select_bottom(&mut self) {
+    fn select_bottom(&mut self) -> Result<()> {
         self.list.state.select(Some(self.list.items.len() - 1));
+        self.send_workspace_id()?;
+        Ok(())
     }
 
-    fn select_top(&mut self) {
+    fn select_top(&mut self) -> Result<()> {
         self.list.state.select(Some(0));
+        self.send_workspace_id()?;
+        Ok(())
+    }
+
+    fn submit(&mut self) -> Result<()> {
+        let command_tx = self.command_tx.as_ref().unwrap();
+        match self.mode {
+            Mode::Insert(target) => {
+                let w = AddWorkspace {
+                    name: self.input.trim().to_string(),
+                    order: Some(target),
+                };
+                command_tx.send(Action::AddWorkspace(w))?;
+                command_tx.send(Action::LeaveInsertMode)?;
+                self.input.clear();
+                self.character_index = 0;
+                self.mode = Mode::Normal;
+            }
+            Mode::Edit(target) => {
+                let w = UpdateWorkspace {
+                    id: self.list.items[target as usize].id,
+                    name: Some(self.input.trim().to_string()),
+                    ..Default::default()
+                };
+                command_tx.send(Action::UpdateWorkspace(w))?;
+                command_tx.send(Action::LeaveInsertMode)?;
+                self.input.clear();
+                self.character_index = 0;
+                self.mode = Mode::Normal;
+            }
+            _ => unreachable!(),
+        };
+        Ok(())
     }
 
     fn handle_insert_mode(&mut self, key: KeyEvent) -> Result<()> {
@@ -89,18 +138,7 @@ impl WorkspacesComponent {
                 }
             }
             KeyCode::Enter => {
-                let target = match self.mode {
-                    Mode::Insert(target) => target,
-                    _ => unreachable!(),
-                };
-                command_tx.send(Action::AddWorkspace(AddWorkspace {
-                    name: self.input.clone(),
-                    order: Some(target),
-                }))?;
-                command_tx.send(Action::LeaveInsertMode)?;
-                self.input.clear();
-                self.character_index = 0;
-                self.mode = Mode::Normal;
+                self.submit()?;
             }
             KeyCode::Esc => {
                 command_tx.send(Action::LeaveInsertMode)?;
@@ -125,6 +163,11 @@ impl WorkspacesComponent {
 }
 
 impl Component for WorkspacesComponent {
+    fn register_config_handler(&mut self, config: Config) -> Result<()> {
+        self.config = config;
+        Ok(())
+    }
+
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<()> {
         self.command_tx = Some(tx);
         Ok(())
@@ -138,34 +181,48 @@ impl Component for WorkspacesComponent {
         Ok(())
     }
 
+    fn focus(&mut self, focus: bool) -> Result<()> {
+        self.is_focused = focus;
+        Ok(())
+    }
+
     fn update(&mut self, action: Action) -> Result<()> {
+        let command_tx = self.command_tx.as_ref().unwrap().clone();
         match action {
             Action::NewWorkspacesData(workspaces) => {
                 self.list.items = workspaces;
+                self.sorter.sort(&mut self.list.items);
+                if !self.list.items.is_empty() && self.list.state.selected().is_none() {
+                    self.list.state.select(Some(0));
+                }
+                self.send_workspace_id()?;
             }
             Action::GoUp => {
-                self.select_previous();
+                self.select_previous()?;
             }
             Action::GoDown => {
-                self.select_next();
+                self.select_next()?;
             }
             Action::GoToTop => {
-                self.select_top();
+                self.select_top()?;
             }
             Action::GoToBottom => {
-                self.select_bottom();
+                self.select_bottom()?;
             }
-            Action::SendKeyEvent(key) => {
-                if let Mode::Insert(_) = self.mode {
+            Action::SendKeyEvent(key) => match self.mode {
+                Mode::Insert(_) | Mode::Edit(_) => {
                     self.handle_insert_mode(key)?;
                 }
-            }
+                _ => unreachable!(),
+            },
             Action::AddItemAfter => {
-                if let Some(selected) = self.list.state.selected() {
-                    self.mode = Mode::Insert(selected as i32 + 1);
+                if let Some(selected) = self.list.state.selected_mut() {
+                    self.mode = Mode::Insert(*selected as i32 + 1);
+                    *selected += 1;
                 } else {
                     self.mode = Mode::Insert(self.list.items.len() as i32);
                 }
+                command_tx.send(Action::EnterInsertMode)?;
             }
             Action::AddItemBefore => {
                 if let Some(selected) = self.list.state.selected() {
@@ -173,13 +230,80 @@ impl Component for WorkspacesComponent {
                 } else {
                     self.mode = Mode::Insert(0);
                 }
+                command_tx.send(Action::EnterInsertMode)?;
             }
             Action::DeleteItem => {
                 if let Some(selected) = self.list.state.selected() {
-                    let command_tx = self.command_tx.as_ref().unwrap();
-                    command_tx.send(Action::RemoveWorkspace(
-                        self.list.items[selected].id,
-                    ))?;
+                    command_tx.send(Action::RemoveWorkspace(self.list.items[selected].id))?;
+                }
+            }
+            Action::EditItem => {
+                if let Some(selected) = self.list.state.selected() {
+                    self.mode = Mode::Edit(selected as i32);
+                    self.input.clone_from(&self.list.items[selected].name);
+                    self.character_index = self.input.len();
+                    command_tx.send(Action::EnterInsertMode)?;
+                }
+            }
+            Action::HighlightWorkspace(name) => {
+                self.highlighted_item = (Some(9), name);
+            }
+            Action::Tick => match self.highlighted_item.0 {
+                Some(0) => {
+                    self.highlighted_item.0 = None;
+                    self.highlighted_item.1.clear();
+                }
+                Some(n) => {
+                    self.highlighted_item.0 = Some(n - 1);
+                }
+                None => {}
+            },
+            Action::MoveItemTop => {
+                if let Some(selected) = self.list.state.selected() {
+                    let w = UpdateWorkspace {
+                        id: self.list.items[selected].id,
+                        order: Some(0),
+                        ..Default::default()
+                    };
+                    command_tx.send(Action::UpdateWorkspace(w))?;
+                    self.select_top();
+                }
+            }
+            Action::MoveItemUp => {
+                if let Some(selected) = self.list.state.selected() {
+                    if selected > 0 {
+                        let w = UpdateWorkspace {
+                            id: self.list.items[selected].id,
+                            order: Some((selected - 1) as i32),
+                            ..Default::default()
+                        };
+                        command_tx.send(Action::UpdateWorkspace(w))?;
+                        self.select_previous();
+                    }
+                }
+            }
+            Action::MoveItemDown => {
+                if let Some(selected) = self.list.state.selected() {
+                    if selected < self.list.items.len() - 1 {
+                        let w = UpdateWorkspace {
+                            id: self.list.items[selected].id,
+                            order: Some((selected + 1) as i32),
+                            ..Default::default()
+                        };
+                        command_tx.send(Action::UpdateWorkspace(w))?;
+                        self.select_next();
+                    }
+                }
+            }
+            Action::MoveItemBottom => {
+                if let Some(selected) = self.list.state.selected() {
+                    let w = UpdateWorkspace {
+                        id: self.list.items[selected].id,
+                        order: Some(self.list.items.len() as i32),
+                        ..Default::default()
+                    };
+                    command_tx.send(Action::UpdateWorkspace(w))?;
+                    self.select_bottom();
                 }
             }
             _ => {}
@@ -188,21 +312,39 @@ impl Component for WorkspacesComponent {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
+        let style = if self.is_focused {
+            self.config.styles[&StyleName::Highlight]
+        } else {
+            Style::default()
+        };
         let block = Block::default()
             .title("Workspaces")
-            .border_style(Style::default().fg(Color::Magenta))
+            .border_style(style)
             .border_type(BorderType::Rounded)
             .borders(Borders::ALL);
 
         let mut items: Vec<ListItem> = vec![];
         for (i, item) in self.list.items.iter().enumerate() {
+            if self.mode == Mode::Edit(i as i32) {
+                items.push(ListItem::new(Line::styled(
+                    self.input.clone(),
+                    Style::default(),
+                )));
+                continue;
+            }
             if self.mode == Mode::Insert(i as i32) {
                 items.push(ListItem::new(Line::styled(
                     self.input.clone(),
                     Style::default(),
                 )));
             }
-            items.push(item.into());
+            let style = if self.highlighted_item.0.is_some() && self.highlighted_item.1 == item.name
+            {
+                self.config.styles[&StyleName::Error]
+            } else {
+                Style::default()
+            };
+            items.push(ListItem::new(Line::from(item.name.clone()).style(style)));
         }
 
         if self.mode == Mode::Insert(self.list.items.len() as i32) {
@@ -214,10 +356,17 @@ impl Component for WorkspacesComponent {
 
         let items = List::new(items)
             .block(block)
-            .highlight_style(Style::new().add_modifier(Modifier::BOLD));
+            .highlight_style(self.config.styles[&StyleName::Selected]);
 
         frame.render_stateful_widget(items, area, &mut self.list.state);
         if let Mode::Insert(line) = self.mode {
+            frame.set_cursor(
+                area.x + 1 + self.character_index as u16,
+                area.y + line as u16 + 1,
+            );
+        }
+
+        if let Mode::Edit(line) = self.mode {
             frame.set_cursor(
                 area.x + 1 + self.character_index as u16,
                 area.y + line as u16 + 1,

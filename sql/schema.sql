@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS Workspace (
 );
 CREATE TABLE IF NOT EXISTS Task (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
   description TEXT,
   priority INTEGER NOT NULL DEFAULT 3,
   completed bit NOT NULL DEFAULT 0,
@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS Task (
   task_order INTEGER,
   workspaceid INTEGER NOT NULL,
   FOREIGN KEY (workspaceid) REFERENCES Workspace(id) ON DELETE CASCADE
+  UNIQUE(workspaceid, name)
 );
  
 CREATE TABLE IF NOT EXISTS trigger_control (active INTEGER);

@@ -25,6 +25,10 @@ pub enum Action {
     AddItemAfter,
     DeleteItem,
     EditItem,
+    MoveItemUp,
+    MoveItemDown,
+    MoveItemTop,
+    MoveItemBottom,
     SendKeyEvent(KeyEvent),
     AddTask(AddTask),
     AddWorkspace(AddWorkspace),
@@ -36,6 +40,9 @@ pub enum Action {
     RequestWorkspacesData,
     NewTasksData(Vec<Task>),
     NewWorkspacesData(Vec<Workspace>),
+    SelectWorkspace(i32),
+    HighlightWorkspace(String),
+    HighlightTask(String),
 }
 
 impl Action {
@@ -48,8 +55,8 @@ impl Action {
                 ComponentId::DatabaseSetWorkspaces
             }
             Action::RequestTasksData(_) | Action::RequestWorkspacesData => ComponentId::DatabaseGet,
-            Action::NewTasksData(_) => ComponentId::Tasks,
-            Action::NewWorkspacesData(_) => ComponentId::Workspaces,
+            Action::NewTasksData(_) | Action::HighlightTask(_) => ComponentId::Tasks,
+            Action::NewWorkspacesData(_) | Action::HighlightWorkspace(_) => ComponentId::Workspaces,
             Action::GoUp | Action::GoDown | Action::GoToTop | Action::GoToBottom => {
                 ComponentId::Focused
             }

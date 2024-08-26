@@ -19,10 +19,22 @@ pub enum TaskSorter {
     CreateDate(bool),
 }
 
+impl Default for WorkspaceSorter {
+    fn default() -> Self {
+        WorkspaceSorter::Order(true)
+    }
+}
+
 pub enum WorkspaceSorter {
     Order(bool),
     CreateDate(bool),
     UpdateDate(bool),
+}
+
+impl Default for TaskSorter {
+    fn default() -> Self {
+        TaskSorter::Order(true)
+    }
 }
 
 impl WorkspaceSorter {

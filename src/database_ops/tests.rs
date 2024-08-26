@@ -1,436 +1,323 @@
 mod test_database_opearations {
-    use pretty_assertions::assert_eq;
 
-    use super::super::DatabaseOperations;
+    use crate::database_ops::DatabaseOperations;
     use crate::structs::*;
-    #[test]
-    fn test_remove() {
-        let database_connection = DatabaseOperations::new(":memory:".into());
-
-        assert_eq!(database_connection.get_workspaces().unwrap(), vec![]);
-
-        database_connection
-            .handle_add_workspace(AddWorkspace {
-                name: "Workspace 1".into(),
-                ..Default::default()
-            })
-            .unwrap();
-
-        let id = database_connection
-            .search_workspace_name("Workspace 1")
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(database_connection.get_workspaces().unwrap().len(), 1);
-        assert_eq!(database_connection.get_tasks(id).unwrap().len(), 0);
-
-        database_connection
-            .handle_add_task(AddTask {
-                name: "Task 1".into(),
-                workspace_id: id,
-                ..Default::default()
-            })
-            .unwrap();
-
-        database_connection
-            .handle_add_task(AddTask {
-                name: "Task 2".into(),
-                workspace_id: id,
-                ..Default::default()
-            })
-            .unwrap();
-
-        let task1_id = database_connection
-            .search_task_name("Task 1", id)
-            .unwrap()
-            .unwrap();
-        let task2_id = database_connection
-            .search_task_name("Task 2", id)
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(
-            database_connection
-                .get_task(task1_id)
-                .unwrap()
-                .unwrap()
-                .name,
-            "Task 1"
-        );
-
-        database_connection.handle_remove_task(task1_id).unwrap();
-
-        assert_eq!(database_connection.get_task(task1_id).unwrap(), None);
-
-        assert_eq!(database_connection.get_tasks(id).unwrap().len(), 1);
-
-        database_connection.handle_remove_workspace(id).unwrap();
-
-        assert_eq!(database_connection.get_workspaces().unwrap(), vec![]);
-
-        assert_eq!(database_connection.get_tasks(id).unwrap(), vec![]);
-
-        assert_eq!(database_connection.get_task(task2_id).unwrap(), None);
-    }
-
-    #[test]
-    fn test_edit() {
-        let database_connection = DatabaseOperations::new(":memory:".into());
-
-        assert_eq!(database_connection.get_workspaces().unwrap(), vec![]);
-
-        database_connection
-            .handle_add_workspace(AddWorkspace {
-                name: "Workspace 1".into(),
-                ..Default::default()
-            })
-            .unwrap();
-
-        let id = database_connection
-            .search_workspace_name("Workspace 1")
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(database_connection.get_workspaces().unwrap().len(), 1);
-
-        database_connection
-            .handle_add_task(AddTask {
-                name: "Task 1".into(),
-                workspace_id: id,
-                ..Default::default()
-            })
-            .unwrap();
-
-        let task1_id = database_connection
-            .search_task_name("Task 1", id)
-            .unwrap()
-            .unwrap();
-
-        database_connection
-            .handle_update_task(UpdateTask {
-                id: task1_id,
-                name: Some("Task 2".into()),
-                description: Some("description".into()),
-                ..Default::default()
-            })
-            .unwrap();
-
-        let task = database_connection.get_task(task1_id).unwrap().unwrap();
-
-        assert_eq!(task.name, "Task 2");
-
-        assert_eq!(task.description.unwrap(), "description");
-
-        assert_eq!(task.priority, 3);
-
-        assert_eq!(task.completed, false);
-
-        database_connection
-            .handle_update_task(UpdateTask {
-                id: task1_id,
-                priority: Some(1),
-                completed: Some(true),
-                ..Default::default()
-            })
-            .unwrap();
-
-        let task = database_connection.get_task(task1_id).unwrap().unwrap();
-
-        assert_eq!(task.name, "Task 2");
-
-        assert_eq!(task.description.unwrap(), "description");
-
-        assert_eq!(task.priority, 1);
-
-        assert_eq!(task.completed, true);
-    }
-
-    #[test]
-    fn test_change_order_tasks() {
-        let database_connection = DatabaseOperations::new(":memory:".into());
-        let sorter = TaskSorter::Order(true);
-
-        database_connection
-            .handle_add_workspace(AddWorkspace {
-                name: "Workspace 1".into(),
-                ..Default::default()
-            })
-            .unwrap();
-
-        let id = database_connection
-            .search_workspace_name("Workspace 1")
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(database_connection.get_workspaces().unwrap().len(), 1);
-
-        database_connection
-            .handle_add_task(AddTask {
-                name: "Task 1".into(),
-                workspace_id: id,
-                ..Default::default()
-            })
-            .unwrap();
-
-        database_connection
-            .handle_add_task(AddTask {
-                name: "Task 2".into(),
-                workspace_id: id,
-                ..Default::default()
-            })
-            .unwrap();
-
-        database_connection
-            .handle_add_task(AddTask {
-                name: "Task 3".into(),
-                workspace_id: id,
-                ..Default::default()
-            })
-            .unwrap();
-
-        assert_eq!(
-            database_connection
-                .get_tasks(id)
-                .unwrap()
-                .into_iter()
-                .map(|x| x.name)
-                .collect::<Vec<String>>(),
-            vec![
-                "Task 1".to_string(),
-                "Task 2".to_string(),
-                "Task 3".to_string()
-            ]
-        );
-
-        let task1_id = database_connection
-            .search_task_name("Task 1", id)
-            .unwrap()
-            .unwrap();
-
-        let task2_id = database_connection
-            .search_task_name("Task 2", id)
-            .unwrap()
-            .unwrap();
-
-        let task3_id = database_connection
-            .search_task_name("Task 3", id)
-            .unwrap()
-            .unwrap();
-
-        database_connection
-            .handle_update_task(UpdateTask {
-                id: task2_id,
-                order: Some(0),
-                ..Default::default()
-            })
-            .unwrap();
-
-        let mut tasks = database_connection.get_tasks(id).unwrap();
-
-        sorter.sort(&mut tasks);
-
-        assert_eq!(
-            tasks.into_iter().map(|x| x.name).collect::<Vec<String>>(),
-            vec![
-                "Task 2".to_string(),
-                "Task 1".to_string(),
-                "Task 3".to_string()
-            ]
-        );
-
-        database_connection
-            .handle_update_task(UpdateTask {
-                id: task2_id,
-                order: Some(2),
-                ..Default::default()
-            })
-            .unwrap();
-
-        let mut tasks = database_connection.get_tasks(id).unwrap();
-
-        sorter.sort(&mut tasks);
-
-        assert_eq!(
-            tasks.into_iter().map(|x| x.name).collect::<Vec<String>>(),
-            vec![
-                "Task 1".to_string(),
-                "Task 3".to_string(),
-                "Task 2".to_string()
-            ]
-        );
-
-        database_connection
-            .handle_update_task(UpdateTask {
-                id: task3_id,
-                order: Some(0),
-                ..Default::default()
-            })
-            .unwrap();
-
-        let mut tasks = database_connection.get_tasks(id).unwrap();
-
-        sorter.sort(&mut tasks);
-
-        assert_eq!(
-            tasks.into_iter().map(|x| x.name).collect::<Vec<String>>(),
-            vec![
-                "Task 3".to_string(),
-                "Task 1".to_string(),
-                "Task 2".to_string()
-            ]
-        );
-
-        database_connection.handle_remove_task(task3_id).unwrap();
-
-        let mut tasks = database_connection.get_tasks(id).unwrap();
-
-        sorter.sort(&mut tasks);
-
-        assert_eq!(
-            tasks
-                .into_iter()
-                .map(|x| (x.order, x.name))
-                .collect::<Vec<(i32, String)>>(),
-            vec![(0, "Task 1".to_string()), (1, "Task 2".to_string())]
-        );
-
-        database_connection
-            .handle_add_task(AddTask {
-                name: "Task 3".into(),
-                workspace_id: id,
-                order: Some(1),
-                ..Default::default()
-            })
-            .unwrap();
-
-        let mut tasks = database_connection.get_tasks(id).unwrap();
-
-        sorter.sort(&mut tasks);
-
-        assert_eq!(
-            tasks
-                .into_iter()
-                .map(|x| (x.order, x.name))
-                .collect::<Vec<(i32, String)>>(),
-            vec![
-                (0, "Task 1".to_string()),
-                (1, "Task 3".to_string()),
-                (2, "Task 2".to_string())
-            ]
-        );
-    }
-    #[test]
-    fn test_change_order_workspaces() {
-        let database_connection = DatabaseOperations::new(":memory:".into());
+    use pretty_assertions::assert_eq;
+    use rand::rngs::StdRng;
+    use rand::{Rng, SeedableRng};
+    const SEEDS: [u64; 5] = [432, 1323, 9923, 1425, 8239];
+    fn process_workspaces(workspaces: &mut [Workspace]) -> Vec<(i32, String)> {
         let sorter = WorkspaceSorter::Order(true);
+        sorter.sort(workspaces);
+        return workspaces
+            .iter()
+            .map(|workspace| (workspace.order, workspace.name.clone()))
+            .collect();
+    }
 
-        database_connection
-            .handle_add_workspace(AddWorkspace {
-                name: "Workspace 1".into(),
+    fn process_tasks(tasks: &mut [Task]) -> Vec<(i32, String)> {
+        let sorter = TaskSorter::Order(true);
+        sorter.sort(tasks);
+        return tasks
+            .iter()
+            .map(|task| (task.order, task.name.clone()))
+            .collect();
+    }
+
+    #[test]
+    fn test_order_tasks() {
+        for seed in SEEDS.iter() {
+            let db = DatabaseOperations::new(":memory:".into());
+            let mut target_tasks: Vec<String> = vec![];
+            let mut rng = StdRng::seed_from_u64(*seed);
+
+            db.handle_add_workspace(AddWorkspace {
+                name: "the workspace".into(),
                 ..Default::default()
             })
             .unwrap();
+            let workspace_id = db.search_workspace_name("the workspace").unwrap().unwrap();
 
-        database_connection
-            .handle_add_workspace(AddWorkspace {
-                name: "Workspace 2".into(),
+            let tasks = process_tasks(&mut db.get_tasks(workspace_id).unwrap());
+            assert_eq!(tasks, vec![]);
+
+            // adding 20 random tasks
+            for _ in 0..20 {
+                let task_name = rng.gen::<u32>().to_string();
+                target_tasks.push(task_name.clone());
+                db.handle_add_task(AddTask {
+                    name: task_name.clone(),
+                    workspace_id,
+                    ..Default::default()
+                })
+                .unwrap();
+
+                let tasks = process_tasks(&mut db.get_tasks(workspace_id).unwrap());
+                assert_eq!(
+                    tasks,
+                    target_tasks
+                        .iter()
+                        .enumerate()
+                        .map(|(i, name)| (i as i32, name.clone()))
+                        .collect::<Vec<(i32, String)>>()
+                );
+            }
+
+            // inserting in the middle of the list
+            for _ in 0..10 {
+                let task_name = rng.gen::<u32>().to_string();
+                let order = rng.gen_range(0..target_tasks.len());
+                target_tasks.insert(order, task_name.clone());
+                db.handle_add_task(AddTask {
+                    name: task_name.clone(),
+                    workspace_id,
+                    order: Some(order as i32),
+                    ..Default::default()
+                })
+                .unwrap();
+
+                let tasks = process_tasks(&mut db.get_tasks(workspace_id).unwrap());
+                assert_eq!(
+                    tasks,
+                    target_tasks
+                        .iter()
+                        .enumerate()
+                        .map(|(i, name)| (i as i32, name.clone()))
+                        .collect::<Vec<(i32, String)>>()
+                );
+            }
+
+            // changing the order of the tasks
+            for _ in 0..50 {
+                let from = rng.gen_range(0..target_tasks.len());
+                let to = rng.gen_range(0..target_tasks.len());
+                let id = db
+                    .search_task_name(&target_tasks[from], workspace_id)
+                    .unwrap()
+                    .unwrap();
+                db.handle_update_task(UpdateTask {
+                    id,
+                    order: Some(to as i32),
+                    ..Default::default()
+                })
+                .unwrap();
+                let temp = target_tasks[from].clone();
+                target_tasks.remove(from);
+                target_tasks.insert(to, temp);
+
+                let tasks = process_tasks(&mut db.get_tasks(workspace_id).unwrap());
+                assert_eq!(
+                    tasks,
+                    target_tasks
+                        .iter()
+                        .enumerate()
+                        .map(|(i, name)| (i as i32, name.clone()))
+                        .collect::<Vec<(i32, String)>>()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_remove_tasks() {
+        for seed in SEEDS.iter() {
+            let db = DatabaseOperations::new(":memory:".into());
+            let mut target_tasks: Vec<String> = vec![];
+            let mut rng = StdRng::seed_from_u64(*seed);
+
+            db.handle_add_workspace(AddWorkspace {
+                name: "the workspace".into(),
                 ..Default::default()
             })
             .unwrap();
+            let workspace_id = db.search_workspace_name("the workspace").unwrap().unwrap();
 
-        database_connection
-            .handle_add_workspace(AddWorkspace {
-                name: "Workspace 3".into(),
-                ..Default::default()
-            })
-            .unwrap();
+            let tasks = process_tasks(&mut db.get_tasks(workspace_id).unwrap());
+            assert_eq!(tasks, vec![]);
 
-        assert_eq!(
-            database_connection
-                .get_workspaces()
-                .unwrap()
-                .into_iter()
-                .map(|x| x.name)
-                .collect::<Vec<String>>(),
-            vec![
-                "Workspace 1".to_string(),
-                "Workspace 2".to_string(),
-                "Workspace 3".to_string()
-            ]
-        );
+            // adding 20 random tasks
+            for _ in 0..20 {
+                let task_name = rng.gen::<u32>().to_string();
+                target_tasks.push(task_name.clone());
+                db.handle_add_task(AddTask {
+                    name: task_name.clone(),
+                    workspace_id,
+                    ..Default::default()
+                })
+                .unwrap();
 
-        let workspace1_id = database_connection
-            .search_workspace_name("Workspace 1")
-            .unwrap()
-            .unwrap();
+                let tasks = process_tasks(&mut db.get_tasks(workspace_id).unwrap());
+                assert_eq!(
+                    tasks,
+                    target_tasks
+                        .iter()
+                        .enumerate()
+                        .map(|(i, name)| (i as i32, name.clone()))
+                        .collect::<Vec<(i32, String)>>()
+                );
+            }
 
-        let workspace2_id = database_connection
-            .search_workspace_name("Workspace 2")
-            .unwrap()
-            .unwrap();
+            // removing 10 tasks
+            for _ in 0..10 {
+                let to_remove = rng.gen_range(0..target_tasks.len());
+                let id = db
+                    .search_task_name(&target_tasks[to_remove], workspace_id)
+                    .unwrap()
+                    .unwrap();
+                db.handle_remove_task(id).unwrap();
+                target_tasks.remove(to_remove);
 
-        let workspace3_id = database_connection
-            .search_workspace_name("Workspace 3")
-            .unwrap()
-            .unwrap();
+                let tasks = process_tasks(&mut db.get_tasks(workspace_id).unwrap());
+                assert_eq!(
+                    tasks,
+                    target_tasks
+                        .iter()
+                        .enumerate()
+                        .map(|(i, name)| (i as i32, name.clone()))
+                        .collect::<Vec<(i32, String)>>()
+                );
+            }
 
-        database_connection
-            .handle_update_workspace(UpdateWorkspace {
-                id: workspace3_id,
-                order: Some(0),
-                ..Default::default()
-            })
-            .unwrap();
+            // remove the workspace
 
-        let mut workspaces = database_connection.get_workspaces().unwrap();
+            db.handle_remove_workspace(workspace_id).unwrap();
+            let tasks = process_tasks(&mut db.get_tasks(workspace_id).unwrap());
+            assert_eq!(tasks, vec![]);
+        }
+    }
+    #[test]
+    fn test_remove_workspaces() {
+        for seed in SEEDS.iter() {
+            let db = DatabaseOperations::new(":memory:".into());
+            let mut target_workspaces: Vec<String> = vec![];
+            let mut rng = StdRng::seed_from_u64(*seed);
 
-        sorter.sort(&mut workspaces);
+            // adding 10 random workspaces
+            for _ in 0..10 {
+                let workspace_name = rng.gen::<u32>().to_string();
+                target_workspaces.push(workspace_name.clone());
+                db.handle_add_workspace(AddWorkspace {
+                    name: workspace_name.clone(),
+                    ..Default::default()
+                })
+                .unwrap();
+            }
 
-        assert_eq!(
-            workspaces
-                .into_iter()
-                .map(|x| x.name)
-                .collect::<Vec<String>>(),
-            vec![
-                "Workspace 3".to_string(),
-                "Workspace 1".to_string(),
-                "Workspace 2".to_string()
-            ]
-        );
+            let workspaces = process_workspaces(&mut db.get_workspaces().unwrap());
+            assert_eq!(
+                workspaces,
+                target_workspaces
+                    .iter()
+                    .enumerate()
+                    .map(|(i, name)| (i as i32, name.clone()))
+                    .collect::<Vec<(i32, String)>>()
+            );
 
-        database_connection
-            .handle_remove_workspace(workspace3_id)
-            .unwrap();
+            // removing all workspaces
+            for _ in 0..10 {
+                let to_remove = rng.gen_range(0..target_workspaces.len());
+                let id = db
+                    .search_workspace_name(&target_workspaces[to_remove])
+                    .unwrap()
+                    .unwrap();
+                db.handle_remove_workspace(id).unwrap();
+                target_workspaces.remove(to_remove);
 
-        let mut workspaces = database_connection.get_workspaces().unwrap();
+                let workspaces = process_workspaces(&mut db.get_workspaces().unwrap());
+                assert_eq!(
+                    workspaces,
+                    target_workspaces
+                        .iter()
+                        .enumerate()
+                        .map(|(i, name)| (i as i32, name.clone()))
+                        .collect::<Vec<(i32, String)>>()
+                );
+            }
+        }
+    }
 
-        sorter.sort(&mut workspaces);
+    #[test]
+    fn test_order_workspaces() {
+        for seed in SEEDS.iter() {
+            let db = DatabaseOperations::new(":memory:".into());
+            let mut target_workspaces: Vec<String> = vec![];
+            let mut rng = StdRng::seed_from_u64(*seed);
 
-        assert_eq!(
-            workspaces
-                .into_iter()
-                .map(|x| (x.order, x.name))
-                .collect::<Vec<(i32,String)>>(),
-            vec![(0,"Workspace 1".to_string()),(1,"Workspace 2".to_string())]
-        );
+            // adding 10 random workspaces
+            for _ in 0..10 {
+                let workspace_name = rng.gen::<u32>().to_string();
+                target_workspaces.push(workspace_name.clone());
+                db.handle_add_workspace(AddWorkspace {
+                    name: workspace_name.clone(),
+                    ..Default::default()
+                })
+                .unwrap();
+            }
 
-        database_connection
-            .handle_add_workspace(AddWorkspace {
-                name: "Workspace 3".into(),
-                order: Some(1),
-            })
-            .unwrap();
+            let workspaces = process_workspaces(&mut db.get_workspaces().unwrap());
+            assert_eq!(
+                workspaces,
+                target_workspaces
+                    .iter()
+                    .enumerate()
+                    .map(|(i, name)| (i as i32, name.clone()))
+                    .collect::<Vec<(i32, String)>>()
+            );
 
-        let mut workspaces = database_connection.get_workspaces().unwrap();
+            // inserting in the middle of the list
+            for _ in 0..10 {
+                let workspace_name = rng.gen::<u32>().to_string();
+                let order = rng.gen_range(0..target_workspaces.len());
+                target_workspaces.insert(order, workspace_name.clone());
+                db.handle_add_workspace(AddWorkspace {
+                    name: workspace_name.clone(),
+                    order: Some(order as i32),
+                })
+                .unwrap();
 
-        sorter.sort(&mut workspaces);
+                let workspaces = process_workspaces(&mut db.get_workspaces().unwrap());
+                assert_eq!(
+                    workspaces,
+                    target_workspaces
+                        .iter()
+                        .enumerate()
+                        .map(|(i, name)| (i as i32, name.clone()))
+                        .collect::<Vec<(i32, String)>>()
+                );
+            }
+            // changing the order of the workspaces
 
-        assert_eq!(
-            workspaces
-                .into_iter()
-                .map(|x| (x.order, x.name))
-                .collect::<Vec<(i32,String)>>(),
-            vec![(0,"Workspace 1".to_string()),(1,"Workspace 3".to_string()),(2,"Workspace 2".to_string())]
-        );
+            for i in 0..50 {
+                let from = rng.gen_range(0..target_workspaces.len());
+                let to = rng.gen_range(0..target_workspaces.len());
+                let id = db
+                    .search_workspace_name(&target_workspaces[from])
+                    .unwrap()
+                    .unwrap();
+                db.handle_update_workspace(UpdateWorkspace {
+                    id,
+                    order: Some(to as i32),
+                    ..Default::default()
+                })
+                .unwrap();
+                let temp = target_workspaces[from].clone();
+                target_workspaces.remove(from);
+                target_workspaces.insert(to, temp);
+
+                let workspaces = process_workspaces(&mut db.get_workspaces().unwrap());
+                assert_eq!(
+                    workspaces,
+                    target_workspaces
+                        .iter()
+                        .enumerate()
+                        .map(|(i, name)| (i as i32, name.clone()))
+                        .collect::<Vec<(i32, String)>>(),
+                    "Failed at iteration: {} transfer {} to {}",
+                    i,
+                    from,
+                    to
+                );
+            }
+        }
     }
 }

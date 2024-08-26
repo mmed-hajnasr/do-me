@@ -5,7 +5,6 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{action::Action, config::Config};
 
 pub mod fps;
-pub mod home;
 pub mod tasks;
 pub mod workspaces;
 
@@ -77,4 +76,17 @@ pub trait Component {
     ///
     /// * `Result<()>` - An Ok result or an error.
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()>;
+    /// sets the focused state in the component.
+    ///
+    /// # Arguments
+    ///
+    /// * `focus` - a the desired focus state.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<()>` - An Ok result or an error.
+    fn focus(&mut self, focus: bool) -> Result<()> {
+        let _ = focus;
+        Ok(())
+    }
 }

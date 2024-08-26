@@ -1,5 +1,5 @@
 use color_eyre::Result;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyEvent;
 use ratatui::{
     layout::{Constraint, Layout},
     prelude::Rect,
@@ -7,13 +7,14 @@ use ratatui::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::{
     action::Action,
     components::{fps::FpsCounter, workspaces::WorkspacesComponent, Component},
     config::Config,
     database_ops::DatabaseOperations,
+    errors::DoMeError,
     tui::{Event, Tui},
 };
 
@@ -27,9 +28,10 @@ pub struct App {
     should_quit: bool,
     should_suspend: bool,
     mode: Mode,
-    last_tick_key_events: Vec<KeyEvent>,
+    last_key_events: (Vec<KeyEvent>, Option<usize>),
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
+    selected_workspace: Option<i32>,
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -64,7 +66,7 @@ impl App {
             Box::new(WorkspacesComponent::new()),
         );
         Ok(Self {
-            database: DatabaseOperations::new(config.config.data_dir.join("do_me.db")),
+            database: DatabaseOperations::new(config.config.data_dir.join("do_me.sqlite")),
             tick_rate,
             frame_rate,
             components,
@@ -73,9 +75,10 @@ impl App {
             should_suspend: false,
             config,
             mode: Mode::default(),
-            last_tick_key_events: Vec::new(),
+            last_key_events: (Vec::new(), None),
             action_tx,
             action_rx,
+            selected_workspace: None,
         })
     }
 
@@ -95,6 +98,11 @@ impl App {
         for component in self.components.values_mut() {
             component.init(tui.size()?)?;
         }
+
+        self.components
+            .get_mut(&ComponentId::Workspaces)
+            .unwrap()
+            .focus(true)?;
 
         let action_tx = self.action_tx.clone();
         loop {
@@ -126,6 +134,19 @@ impl App {
             Event::Render => action_tx.send(Action::Render)?,
             Event::Resize(x, y) => action_tx.send(Action::Resize(x, y))?,
             Event::Key(key) => self.handle_key_event(key)?,
+            Event::FocusGained => {
+                self.components
+                    .get_mut(&self.focused)
+                    .unwrap()
+                    .focus(true)?;
+            }
+            Event::FocusLost => {
+                self.components
+                    .get_mut(&self.focused)
+                    .unwrap()
+                    .focus(false)?;
+                panic!("Focus lost event not implemented.");
+            }
             _ => {}
         }
         Ok(())
@@ -134,7 +155,10 @@ impl App {
     fn handle_key_event(&mut self, key: KeyEvent) -> Result<()> {
         // if editing mode send all keypresses to the focused component.
         if self.mode == Mode::Insert {
-            self.components.get_mut(&self.focused).unwrap().update(Action::SendKeyEvent(key))?;
+            self.components
+                .get_mut(&self.focused)
+                .unwrap()
+                .update(Action::SendKeyEvent(key))?;
             return Ok(());
         }
 
@@ -159,7 +183,10 @@ impl App {
             return Ok(());
         }
 
-        self.last_tick_key_events.push(key);
+        if self.last_key_events.1.is_none() {
+            self.last_key_events.1 = Some(4);
+        }
+        self.last_key_events.0.push(key);
 
         Ok(())
     }
@@ -173,19 +200,22 @@ impl App {
 
         match keymap.get(&vec![key]) {
             Some(action) => {
-                info!("Got action: {action:?}");
                 action_tx.send(action.clone())?;
                 return Ok(true);
             }
 
             _ => {
-                self.last_tick_key_events.push(key);
-                if let Some(action) = keymap.get(&self.last_tick_key_events) {
-                    info!("Got action: {action:?}");
-                    action_tx.send(action.clone())?;
-                    return Ok(true);
+                if self.last_key_events.1.is_none() {
+                    return Ok(false);
                 }
-                self.last_tick_key_events.pop();
+                let mut events_list = self.last_key_events.0.clone();
+                events_list.push(key);
+                for i in 0..events_list.len() {
+                    if let Some(action) = keymap.get(&events_list[i..]) {
+                        action_tx.send(action.clone())?;
+                        return Ok(true);
+                    }
+                }
             }
         }
         Ok(false)
@@ -194,16 +224,23 @@ impl App {
     fn handle_actions(&mut self, tui: &mut Tui) -> Result<()> {
         while let Ok(action) = self.action_rx.try_recv() {
             if action != Action::Tick && action != Action::Render {
-                debug!("{action:?}");
+                info!("Got action: {action:?}");
             }
 
             let target = action.get_target();
             match target {
                 ComponentId::All => {
                     match action {
-                        Action::Tick => {
-                            self.last_tick_key_events.clear();
-                        }
+                        Action::Tick => match self.last_key_events.1 {
+                            Some(0) => {
+                                self.last_key_events.0.clear();
+                                self.last_key_events.1 = None;
+                            }
+                            Some(i) => {
+                                self.last_key_events.1 = Some(i - 1);
+                            }
+                            None => {}
+                        },
                         Action::Quit => self.should_quit = true,
                         Action::Suspend => self.should_suspend = true,
                         Action::Resume => self.should_suspend = false,
@@ -227,13 +264,21 @@ impl App {
                 }
                 ComponentId::DatabaseSetTasks => {
                     self.database.handle_update_actions(action.clone())?;
-                    //TODO: get worksapce id.
-                    let workspace_id = 1;
-                    self.action_tx
-                        .send(Action::RequestTasksData(workspace_id))?;
+                    if let Some(workspace_id) = self.selected_workspace {
+                        self.action_tx
+                            .send(Action::RequestTasksData(workspace_id))?;
+                    } 
                 }
                 ComponentId::DatabaseSetWorkspaces => {
-                    self.database.handle_update_actions(action.clone())?;
+                    if let Err(e) = self.database.handle_update_actions(action.clone()) {
+                        if let Some(DoMeError::WorkspaceAlreadyExists(name)) =
+                            e.downcast_ref::<DoMeError>()
+                        {
+                            self.action_tx.send(Action::HighlightWorkspace(name.to_string()))?;
+                        } else {
+                            return Err(e);
+                        }
+                    }
                     self.action_tx.send(Action::RequestWorkspacesData)?;
                 }
                 ComponentId::DatabaseGet => match action {

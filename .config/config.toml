@@ -4,11 +4,21 @@
 "<ctrl-c>" = "Quit"    # Yet another way to quit
 "<ctrl-z>" = "Suspend" # Suspend the application
 [keybindings.Navigation]
-"<j>" = "GoDown"           # Move the cursor down
-"<k>" = "GoUp"             # Move the cursor up
-"<g>" = "GoToTop"          # Move the cursor to the top
-"<shift-g>" = "GoToBottom" # Move the cursor to the bottom
-"<i>" = "AddItemBefore"    # Add an item before the current one
-"<a>" = "AddItemAfter"     # Add an item after the current one
-"<d>" = "DeleteItem"       # Delete the current item
-"<e>" = "EditItem"         # Edit the current item
+"<j>" = "GoDown"        # Move the cursor down
+"<k>" = "GoUp"          # Move the cursor up
+"<shift-g>" = "GoToTop" # Move the cursor to the top
+"<g><g>" = "GoToBottom" # Move the cursor to the bottom
+"<i>" = "AddItemBefore" # Add an item before the current one
+"<a>" = "AddItemAfter"  # Add an item after the current one
+"<d>" = "DeleteItem"    # Delete the current item
+"<e>" = "EditItem"      # Edit the current item
+"<shift-j>" = "MoveItemDown"   # Move the current item down
+"<shift-k>" = "MoveItemUp"     # Move the current item up
+"<ctrl-shift-k>" = "MoveItemTop"  # Move the current item to the top
+"<ctrl-shift-j>" = "MoveItemBottom" # Move the current item to the bottom
+[styles]
+"Highlight" = "magenta"
+"Selected" = "bold"
+"Normal" = ""
+"Error" = "red"
+"Info" = "green"
