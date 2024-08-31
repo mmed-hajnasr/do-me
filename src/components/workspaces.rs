@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use super::Component;
 use crate::{
     action::Action,
@@ -266,7 +268,7 @@ impl Component for WorkspacesComponent {
                         ..Default::default()
                     };
                     command_tx.send(Action::UpdateWorkspace(w))?;
-                    self.select_top();
+                    self.select_top()?;
                 }
             }
             Action::MoveItemUp => {
@@ -278,7 +280,7 @@ impl Component for WorkspacesComponent {
                             ..Default::default()
                         };
                         command_tx.send(Action::UpdateWorkspace(w))?;
-                        self.select_previous();
+                        self.select_previous()?;
                     }
                 }
             }
@@ -291,7 +293,7 @@ impl Component for WorkspacesComponent {
                             ..Default::default()
                         };
                         command_tx.send(Action::UpdateWorkspace(w))?;
-                        self.select_next();
+                        self.select_next()?;
                     }
                 }
             }
@@ -303,7 +305,7 @@ impl Component for WorkspacesComponent {
                         ..Default::default()
                     };
                     command_tx.send(Action::UpdateWorkspace(w))?;
-                    self.select_bottom();
+                    self.select_bottom()?;
                 }
             }
             _ => {}
@@ -317,6 +319,13 @@ impl Component for WorkspacesComponent {
         } else {
             Style::default()
         };
+
+        // if adding an item at the end fails the selected item will be higher than the number of
+        // items so i did this:
+        if let Some(selected) = self.list.state.selected_mut() {
+            *selected = min(*selected, self.list.items.len() - 1);
+        }
+
         let block = Block::default()
             .title("Workspaces")
             .border_style(style)

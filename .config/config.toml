@@ -4,17 +4,19 @@
 "<ctrl-c>" = "Quit"    # Yet another way to quit
 "<ctrl-z>" = "Suspend" # Suspend the application
 [keybindings.Navigation]
-"<j>" = "GoDown"        # Move the cursor down
-"<k>" = "GoUp"          # Move the cursor up
-"<shift-g>" = "GoToTop" # Move the cursor to the top
-"<g><g>" = "GoToBottom" # Move the cursor to the bottom
-"<i>" = "AddItemBefore" # Add an item before the current one
-"<a>" = "AddItemAfter"  # Add an item after the current one
-"<d>" = "DeleteItem"    # Delete the current item
-"<e>" = "EditItem"      # Edit the current item
-"<shift-j>" = "MoveItemDown"   # Move the current item down
-"<shift-k>" = "MoveItemUp"     # Move the current item up
-"<ctrl-shift-k>" = "MoveItemTop"  # Move the current item to the top
+"<j>" = "GoDown"                    # Move the cursor down
+"<k>" = "GoUp"                      # Move the cursor up
+"<h>" = "MoveFocusLeft"             # Move the focus to the left
+"<l>" = "MoveFocusRight"            # Move the focus to the right
+"<shift-g>" = "GoToTop"             # Move the cursor to the top
+"<g><g>" = "GoToBottom"             # Move the cursor to the bottom
+"<i>" = "AddItemBefore"             # Add an item before the current one
+"<a>" = "AddItemAfter"              # Add an item after the current one
+"<d>" = "DeleteItem"                # Delete the current item
+"<e>" = "EditItem"                  # Edit the current item
+"<shift-j>" = "MoveItemDown"        # Move the current item down
+"<shift-k>" = "MoveItemUp"          # Move the current item up
+"<ctrl-shift-k>" = "MoveItemTop"    # Move the current item to the top
 "<ctrl-shift-j>" = "MoveItemBottom" # Move the current item to the bottom
 [styles]
 "Highlight" = "magenta"

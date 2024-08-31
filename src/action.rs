@@ -43,6 +43,8 @@ pub enum Action {
     SelectWorkspace(i32),
     HighlightWorkspace(String),
     HighlightTask(String),
+    MoveFocusRight,
+    MoveFocusLeft,
 }
 
 impl Action {
@@ -60,6 +62,14 @@ impl Action {
             Action::GoUp | Action::GoDown | Action::GoToTop | Action::GoToBottom => {
                 ComponentId::Focused
             }
+            Action::AddItemAfter
+            | Action::AddItemBefore
+            | Action::DeleteItem
+            | Action::EditItem => ComponentId::Focused,
+            Action::MoveItemUp
+            | Action::MoveItemDown
+            | Action::MoveItemTop
+            | Action::MoveItemBottom => ComponentId::Focused,
             Action::SendKeyEvent(..) => ComponentId::Focused,
             _ => ComponentId::All,
         }

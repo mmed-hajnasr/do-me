@@ -1,35 +1,61 @@
 {
-  description = "just-ball dev enveirement";
+  description = "A Nix-flake-based Rust development environment";
+
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1.*.tar.gz";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { nixpkgs, ... }:
+  outputs = { self, nixpkgs, rust-overlay }:
     let
-      system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
+      supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      forEachSupportedSystem = f: nixpkgs.lib.genAttrs supportedSystems (system: f {
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ rust-overlay.overlays.default self.overlays.default ];
+        };
+      });
     in
     {
-      devShells.${system}.default = pkgs.mkShell {
-
-        packages = with pkgs;[
-          cargo
-          rustc
-
-          rust-analyzer
-          clippy
-          rustfmt
-
-          pkg-config
-          sqlite
-          lldb
-        ];
-
-        env = {
-          RUST_BACKTRACE = 1;
-        };
-
+      overlays.default = final: prev: {
+        rustToolchain =
+          let
+            rust = prev.rust-bin;
+          in
+          if builtins.pathExists ./rust-toolchain.toml then
+            rust.fromRustupToolchainFile ./rust-toolchain.toml
+          else if builtins.pathExists ./rust-toolchain then
+            rust.fromRustupToolchainFile ./rust-toolchain
+          else
+            rust.stable.latest.default.override {
+              extensions = [ "rust-src" "rustfmt" ];
+            };
       };
+
+      devShells = forEachSupportedSystem ({ pkgs }: {
+        default = pkgs.mkShell {
+          packages = with pkgs; [
+            rustToolchain
+            openssl
+            pkg-config
+            cargo-deny
+            cargo-edit
+            cargo-watch
+            rust-analyzer
+
+            sqlite
+            clippy
+            lldb
+          ];
+
+          env = {
+            # Required by rust-analyzer
+            RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
+          };
+        };
+      });
     };
 }
-

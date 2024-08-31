@@ -1,3 +1,13 @@
+use crate::{
+    action::Action,
+    components::{
+        fps::FpsCounter, tasks::TasksComponent, workspaces::WorkspacesComponent, Component,
+    },
+    config::Config,
+    database_ops::DatabaseOperations,
+    errors::DoMeError,
+    tui::{Event, Tui},
+};
 use color_eyre::Result;
 use crossterm::event::KeyEvent;
 use ratatui::{
@@ -8,15 +18,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tracing::{error, info};
-
-use crate::{
-    action::Action,
-    components::{fps::FpsCounter, workspaces::WorkspacesComponent, Component},
-    config::Config,
-    database_ops::DatabaseOperations,
-    errors::DoMeError,
-    tui::{Event, Tui},
-};
 
 pub struct App {
     config: Config,
@@ -65,6 +66,7 @@ impl App {
             ComponentId::Workspaces,
             Box::new(WorkspacesComponent::new()),
         );
+        components.insert(ComponentId::Tasks, Box::new(TasksComponent::new()));
         Ok(Self {
             database: DatabaseOperations::new(config.config.data_dir.join("do_me.sqlite")),
             tick_rate,
@@ -84,7 +86,6 @@ impl App {
 
     pub async fn run(&mut self) -> Result<()> {
         let mut tui = Tui::new()?
-            // .mouse(true) // uncomment this line to enable mouse support
             .tick_rate(self.tick_rate)
             .frame_rate(self.frame_rate);
         tui.enter()?;
@@ -112,7 +113,6 @@ impl App {
                 tui.suspend()?;
                 action_tx.send(Action::Resume)?;
                 action_tx.send(Action::ClearScreen)?;
-                // tui.mouse(true);
                 tui.enter()?;
             } else if self.should_quit {
                 tui.stop()?;
@@ -249,6 +249,32 @@ impl App {
                         Action::Render => self.render(tui)?,
                         Action::EnterInsertMode => self.mode = Mode::Insert,
                         Action::LeaveInsertMode => self.mode = Mode::Navigation,
+                        Action::MoveFocusRight => {
+                            self.components
+                                .get_mut(&self.focused)
+                                .unwrap()
+                                .focus(false)?;
+                            self.focused = ComponentId::Tasks;
+                            self.components
+                                .get_mut(&self.focused)
+                                .unwrap()
+                                .focus(true)?;
+                        }
+                        Action::MoveFocusLeft => {
+                            self.components
+                                .get_mut(&self.focused)
+                                .unwrap()
+                                .focus(false)?;
+                            self.focused = ComponentId::Workspaces;
+                            self.components
+                                .get_mut(&self.focused)
+                                .unwrap()
+                                .focus(true)?;
+                        }
+                        Action::SelectWorkspace(id) => {
+                            self.selected_workspace = Some(id);
+                            self.action_tx.send(Action::RequestTasksData(id))?;
+                        }
                         _ => {}
                     }
                     for component in self.components.values_mut() {
@@ -267,14 +293,15 @@ impl App {
                     if let Some(workspace_id) = self.selected_workspace {
                         self.action_tx
                             .send(Action::RequestTasksData(workspace_id))?;
-                    } 
+                    }
                 }
                 ComponentId::DatabaseSetWorkspaces => {
                     if let Err(e) = self.database.handle_update_actions(action.clone()) {
                         if let Some(DoMeError::WorkspaceAlreadyExists(name)) =
                             e.downcast_ref::<DoMeError>()
                         {
-                            self.action_tx.send(Action::HighlightWorkspace(name.to_string()))?;
+                            self.action_tx
+                                .send(Action::HighlightWorkspace(name.to_string()))?;
                         } else {
                             return Err(e);
                         }
