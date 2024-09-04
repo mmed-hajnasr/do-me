@@ -6,7 +6,7 @@ mod test_database_opearations {
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
     const SEEDS: [u64; 5] = [432, 1323, 9923, 1425, 8239];
-    fn process_workspaces(workspaces: &mut [Workspace]) -> Vec<(i32, String)> {
+    fn process_workspaces(workspaces: &mut [Workspace]) -> Vec<(usize, String)> {
         let sorter = WorkspaceSorter::Order(true);
         sorter.sort(workspaces);
         return workspaces
@@ -15,7 +15,7 @@ mod test_database_opearations {
             .collect();
     }
 
-    fn process_tasks(tasks: &mut [Task]) -> Vec<(i32, String)> {
+    fn process_tasks(tasks: &mut [Task]) -> Vec<(usize, String)> {
         let sorter = TaskSorter::Order(true);
         sorter.sort(tasks);
         return tasks
@@ -58,8 +58,8 @@ mod test_database_opearations {
                     target_tasks
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i as i32, name.clone()))
-                        .collect::<Vec<(i32, String)>>()
+                        .map(|(i, name)| (i, name.clone()))
+                        .collect::<Vec<(usize, String)>>()
                 );
             }
 
@@ -71,7 +71,7 @@ mod test_database_opearations {
                 db.handle_add_task(AddTask {
                     name: task_name.clone(),
                     workspace_id,
-                    order: Some(order as i32),
+                    order: Some(order),
                     ..Default::default()
                 })
                 .unwrap();
@@ -82,8 +82,8 @@ mod test_database_opearations {
                     target_tasks
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i as i32, name.clone()))
-                        .collect::<Vec<(i32, String)>>()
+                        .map(|(i, name)| (i , name.clone()))
+                        .collect::<Vec<(usize, String)>>()
                 );
             }
 
@@ -97,7 +97,7 @@ mod test_database_opearations {
                     .unwrap();
                 db.handle_update_task(UpdateTask {
                     id,
-                    order: Some(to as i32),
+                    order: Some(to ),
                     ..Default::default()
                 })
                 .unwrap();
@@ -111,8 +111,8 @@ mod test_database_opearations {
                     target_tasks
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i as i32, name.clone()))
-                        .collect::<Vec<(i32, String)>>()
+                        .map(|(i, name)| (i , name.clone()))
+                        .collect::<Vec<(usize, String)>>()
                 );
             }
         }
@@ -152,8 +152,8 @@ mod test_database_opearations {
                     target_tasks
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i as i32, name.clone()))
-                        .collect::<Vec<(i32, String)>>()
+                        .map(|(i, name)| (i , name.clone()))
+                        .collect::<Vec<(usize, String)>>()
                 );
             }
 
@@ -173,8 +173,8 @@ mod test_database_opearations {
                     target_tasks
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i as i32, name.clone()))
-                        .collect::<Vec<(i32, String)>>()
+                        .map(|(i, name)| (i , name.clone()))
+                        .collect::<Vec<(usize, String)>>()
                 );
             }
 
@@ -209,8 +209,8 @@ mod test_database_opearations {
                 target_workspaces
                     .iter()
                     .enumerate()
-                    .map(|(i, name)| (i as i32, name.clone()))
-                    .collect::<Vec<(i32, String)>>()
+                    .map(|(i, name)| (i , name.clone()))
+                    .collect::<Vec<(usize, String)>>()
             );
 
             // removing all workspaces
@@ -229,8 +229,8 @@ mod test_database_opearations {
                     target_workspaces
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i as i32, name.clone()))
-                        .collect::<Vec<(i32, String)>>()
+                        .map(|(i, name)| (i , name.clone()))
+                        .collect::<Vec<(usize, String)>>()
                 );
             }
         }
@@ -260,8 +260,8 @@ mod test_database_opearations {
                 target_workspaces
                     .iter()
                     .enumerate()
-                    .map(|(i, name)| (i as i32, name.clone()))
-                    .collect::<Vec<(i32, String)>>()
+                    .map(|(i, name)| (i , name.clone()))
+                    .collect::<Vec<(usize, String)>>()
             );
 
             // inserting in the middle of the list
@@ -271,7 +271,7 @@ mod test_database_opearations {
                 target_workspaces.insert(order, workspace_name.clone());
                 db.handle_add_workspace(AddWorkspace {
                     name: workspace_name.clone(),
-                    order: Some(order as i32),
+                    order: Some(order ),
                 })
                 .unwrap();
 
@@ -281,8 +281,8 @@ mod test_database_opearations {
                     target_workspaces
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i as i32, name.clone()))
-                        .collect::<Vec<(i32, String)>>()
+                        .map(|(i, name)| (i , name.clone()))
+                        .collect::<Vec<(usize, String)>>()
                 );
             }
             // changing the order of the workspaces
@@ -296,7 +296,7 @@ mod test_database_opearations {
                     .unwrap();
                 db.handle_update_workspace(UpdateWorkspace {
                     id,
-                    order: Some(to as i32),
+                    order: Some(to ),
                     ..Default::default()
                 })
                 .unwrap();
@@ -310,8 +310,8 @@ mod test_database_opearations {
                     target_workspaces
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i as i32, name.clone()))
-                        .collect::<Vec<(i32, String)>>(),
+                        .map(|(i, name)| (i , name.clone()))
+                        .collect::<Vec<(usize, String)>>(),
                     "Failed at iteration: {} transfer {} to {}",
                     i,
                     from,

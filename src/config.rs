@@ -1,5 +1,3 @@
-use std::{collections::HashMap, default, env, path::PathBuf};
-
 use color_eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use derive_deref::{Deref, DerefMut};
@@ -7,6 +5,7 @@ use directories::ProjectDirs;
 use lazy_static::lazy_static;
 use ratatui::style::{Color, Modifier, Style};
 use serde::{de::Deserializer, Deserialize, Serialize};
+use std::{collections::HashMap, env, path::PathBuf};
 use tracing::error;
 
 use crate::{action::Action, app::Mode};
@@ -223,6 +222,7 @@ fn parse_key_code_with_modifiers(
     Ok(KeyEvent::new(c, modifiers))
 }
 
+#[allow(dead_code)]
 pub fn key_event_to_string(key_event: &KeyEvent) -> String {
     let char;
     let key_code = match key_event.code {

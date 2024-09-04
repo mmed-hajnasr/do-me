@@ -9,31 +9,33 @@ pub struct Task {
     pub priority: i32,
     pub completed: bool,
     pub create_date: NaiveDateTime,
-    pub order: i32,
+    pub order: usize,
     pub workspace_id: i32,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum TaskSorter {
     Priority(bool),
     Order(bool),
     CreateDate(bool),
 }
 
-impl Default for WorkspaceSorter {
+impl Default for TaskSorter {
     fn default() -> Self {
-        WorkspaceSorter::Order(true)
+        TaskSorter::Order(true)
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum WorkspaceSorter {
     Order(bool),
     CreateDate(bool),
     UpdateDate(bool),
 }
 
-impl Default for TaskSorter {
+impl Default for WorkspaceSorter {
     fn default() -> Self {
-        TaskSorter::Order(true)
+        WorkspaceSorter::Order(true)
     }
 }
 
@@ -98,7 +100,7 @@ impl TaskSorter {
 pub struct Workspace {
     pub id: i32,
     pub name: String,
-    pub order: i32,
+    pub order: usize,
     pub create_date: NaiveDateTime,
     pub update_date: NaiveDateTime,
 }
@@ -108,14 +110,14 @@ pub struct AddTask {
     pub name: String,
     pub description: Option<String>,
     pub priority: Option<i32>,
-    pub order: Option<i32>,
+    pub order: Option<usize>,
     pub workspace_id: i32,
 }
 
 #[derive(Default, Debug, Serialize, Clone, PartialEq, Eq, Deserialize)]
 pub struct AddWorkspace {
     pub name: String,
-    pub order: Option<i32>,
+    pub order: Option<usize>,
 }
 
 #[derive(Default, Debug, Serialize, Clone, PartialEq, Eq, Deserialize)]
@@ -125,12 +127,12 @@ pub struct UpdateTask {
     pub description: Option<String>,
     pub priority: Option<i32>,
     pub completed: Option<bool>,
-    pub order: Option<i32>,
+    pub order: Option<usize>,
 }
 
 #[derive(Default, Debug, Serialize, Clone, PartialEq, Eq, Deserialize)]
 pub struct UpdateWorkspace {
     pub id: i32,
     pub name: Option<String>,
-    pub order: Option<i32>,
+    pub order: Option<usize>,
 }

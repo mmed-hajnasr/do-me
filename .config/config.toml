@@ -19,7 +19,7 @@
 "<ctrl-shift-k>" = "MoveItemTop"    # Move the current item to the top
 "<ctrl-shift-j>" = "MoveItemBottom" # Move the current item to the bottom
 [styles]
-"Highlight" = "magenta"
+"Highlight" = "cyan"
 "Selected" = "bold"
 "Normal" = ""
 "Error" = "red"

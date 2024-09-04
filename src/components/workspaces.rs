@@ -1,5 +1,3 @@
-use std::cmp::min;
-
 use super::Component;
 use crate::{
     action::Action,
@@ -9,30 +7,32 @@ use crate::{
 use color_eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{prelude::*, widgets::*};
+use std::cmp::min;
 use tokio::sync::mpsc::UnboundedSender;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct WorkspacesComponent {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
     list: WorkspacesList,
-    input: String,
+    input: String, // save the currently edited text
     character_index: usize,
     mode: Mode,
     sorter: WorkspaceSorter,
     is_focused: bool,
     highlighted_item: (Option<usize>, String),
+    to_be_selected: Option<usize>, // to save the index of the new element to be selected.
 }
 
-#[derive(Default, PartialEq, Eq)]
+#[derive(Default, PartialEq, Eq, Debug)]
 enum Mode {
     #[default]
     Normal,
-    Insert(i32),
-    Edit(i32),
+    Insert(usize),
+    Edit(usize),
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct WorkspacesList {
     items: Vec<Workspace>,
     state: ListState,
@@ -53,6 +53,9 @@ impl WorkspacesComponent {
     }
 
     fn select_next(&mut self) -> Result<()> {
+        if self.list.items.is_empty() {
+            return Ok(());
+        }
         match self.list.state.selected_mut() {
             Some(selected) => {
                 *selected += 1;
@@ -67,6 +70,9 @@ impl WorkspacesComponent {
     }
 
     fn select_previous(&mut self) -> Result<()> {
+        if self.list.items.is_empty() {
+            return Ok(());
+        }
         match self.list.state.selected_mut() {
             Some(selected) => {
                 if *selected == 0 {
@@ -76,7 +82,7 @@ impl WorkspacesComponent {
                 }
             }
             None => {
-                self.list.state.select(Some(0));
+                self.list.state.select(Some(self.list.items.len() - 1));
             }
         }
         self.send_workspace_id()?;
@@ -84,12 +90,18 @@ impl WorkspacesComponent {
     }
 
     fn select_bottom(&mut self) -> Result<()> {
+        if self.list.items.is_empty() {
+            return Ok(());
+        }
         self.list.state.select(Some(self.list.items.len() - 1));
         self.send_workspace_id()?;
         Ok(())
     }
 
     fn select_top(&mut self) -> Result<()> {
+        if self.list.items.is_empty() {
+            return Ok(());
+        }
         self.list.state.select(Some(0));
         self.send_workspace_id()?;
         Ok(())
@@ -105,18 +117,20 @@ impl WorkspacesComponent {
                 };
                 command_tx.send(Action::AddWorkspace(w))?;
                 command_tx.send(Action::LeaveInsertMode)?;
+                self.to_be_selected = Some(target);
                 self.input.clear();
                 self.character_index = 0;
                 self.mode = Mode::Normal;
             }
             Mode::Edit(target) => {
                 let w = UpdateWorkspace {
-                    id: self.list.items[target as usize].id,
+                    id: self.list.items[target].id,
                     name: Some(self.input.trim().to_string()),
                     ..Default::default()
                 };
                 command_tx.send(Action::UpdateWorkspace(w))?;
                 command_tx.send(Action::LeaveInsertMode)?;
+                self.to_be_selected = Some(target);
                 self.input.clear();
                 self.character_index = 0;
                 self.mode = Mode::Normal;
@@ -194,9 +208,21 @@ impl Component for WorkspacesComponent {
             Action::NewWorkspacesData(workspaces) => {
                 self.list.items = workspaces;
                 self.sorter.sort(&mut self.list.items);
-                if !self.list.items.is_empty() && self.list.state.selected().is_none() {
+
+                // selection handling
+                if self.list.items.is_empty() {
+                    self.list.state.select(None);
+                    command_tx.send(Action::UnselectWorkspace)?;
+                } else if let Some(index) = self.to_be_selected {
+                    let index = min(index, self.list.items.len() - 1);
+                    self.list.state.select(Some(index));
+                    self.to_be_selected = None;
+                } else if self.list.state.selected().is_none() {
                     self.list.state.select(Some(0));
+                } else if let Some(selected) = self.list.state.selected_mut() {
+                    *selected = min(*selected, self.list.items.len() - 1);
                 }
+
                 self.send_workspace_id()?;
             }
             Action::GoUp => {
@@ -211,24 +237,25 @@ impl Component for WorkspacesComponent {
             Action::GoToBottom => {
                 self.select_bottom()?;
             }
-            Action::SendKeyEvent(key) => match self.mode {
-                Mode::Insert(_) | Mode::Edit(_) => {
-                    self.handle_insert_mode(key)?;
-                }
-                _ => unreachable!(),
-            },
+            Action::SendKeyEvent(key) => {
+                assert_ne!(
+                    self.mode,
+                    Mode::Normal,
+                    "the Component is in normal while app is in edit mode"
+                );
+                self.handle_insert_mode(key)?;
+            }
             Action::AddItemAfter => {
-                if let Some(selected) = self.list.state.selected_mut() {
-                    self.mode = Mode::Insert(*selected as i32 + 1);
-                    *selected += 1;
+                if let Some(selected) = self.list.state.selected() {
+                    self.mode = Mode::Insert(selected + 1);
                 } else {
-                    self.mode = Mode::Insert(self.list.items.len() as i32);
+                    self.mode = Mode::Insert(self.list.items.len());
                 }
                 command_tx.send(Action::EnterInsertMode)?;
             }
             Action::AddItemBefore => {
                 if let Some(selected) = self.list.state.selected() {
-                    self.mode = Mode::Insert(selected as i32);
+                    self.mode = Mode::Insert(selected);
                 } else {
                     self.mode = Mode::Insert(0);
                 }
@@ -241,7 +268,7 @@ impl Component for WorkspacesComponent {
             }
             Action::EditItem => {
                 if let Some(selected) = self.list.state.selected() {
-                    self.mode = Mode::Edit(selected as i32);
+                    self.mode = Mode::Edit(selected);
                     self.input.clone_from(&self.list.items[selected].name);
                     self.character_index = self.input.len();
                     command_tx.send(Action::EnterInsertMode)?;
@@ -276,7 +303,7 @@ impl Component for WorkspacesComponent {
                     if selected > 0 {
                         let w = UpdateWorkspace {
                             id: self.list.items[selected].id,
-                            order: Some((selected - 1) as i32),
+                            order: Some(selected - 1),
                             ..Default::default()
                         };
                         command_tx.send(Action::UpdateWorkspace(w))?;
@@ -289,7 +316,7 @@ impl Component for WorkspacesComponent {
                     if selected < self.list.items.len() - 1 {
                         let w = UpdateWorkspace {
                             id: self.list.items[selected].id,
-                            order: Some((selected + 1) as i32),
+                            order: Some(selected + 1),
                             ..Default::default()
                         };
                         command_tx.send(Action::UpdateWorkspace(w))?;
@@ -301,7 +328,7 @@ impl Component for WorkspacesComponent {
                 if let Some(selected) = self.list.state.selected() {
                     let w = UpdateWorkspace {
                         id: self.list.items[selected].id,
-                        order: Some(self.list.items.len() as i32),
+                        order: Some(self.list.items.len()),
                         ..Default::default()
                     };
                     command_tx.send(Action::UpdateWorkspace(w))?;
@@ -314,68 +341,51 @@ impl Component for WorkspacesComponent {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
-        let style = if self.is_focused {
+        let selected_style = self.config.styles[&StyleName::Selected];
+        let error_style = self.config.styles[&StyleName::Error];
+        let block_style = if self.is_focused {
             self.config.styles[&StyleName::Highlight]
         } else {
             Style::default()
         };
 
-        // if adding an item at the end fails the selected item will be higher than the number of
-        // items so i did this:
-        if let Some(selected) = self.list.state.selected_mut() {
-            *selected = min(*selected, self.list.items.len() - 1);
-        }
-
         let block = Block::default()
             .title("Workspaces")
-            .border_style(style)
+            .border_style(block_style)
             .border_type(BorderType::Rounded)
             .borders(Borders::ALL);
 
-        let mut items: Vec<ListItem> = vec![];
-        for (i, item) in self.list.items.iter().enumerate() {
-            if self.mode == Mode::Edit(i as i32) {
-                items.push(ListItem::new(Line::styled(
-                    self.input.clone(),
-                    Style::default(),
-                )));
-                continue;
-            }
-            if self.mode == Mode::Insert(i as i32) {
-                items.push(ListItem::new(Line::styled(
-                    self.input.clone(),
-                    Style::default(),
-                )));
-            }
-            let style = if self.highlighted_item.0.is_some() && self.highlighted_item.1 == item.name
-            {
-                self.config.styles[&StyleName::Error]
-            } else {
-                Style::default()
-            };
-            items.push(ListItem::new(Line::from(item.name.clone()).style(style)));
-        }
+        let mut items: Vec<ListItem> = self
+            .list
+            .items
+            .iter()
+            .map(|w| {
+                if self.highlighted_item.0.is_some() && self.highlighted_item.1 == w.name {
+                    ListItem::new(Line::from(w.name.clone()).style(error_style))
+                } else {
+                    ListItem::new(Line::from(w.name.clone()))
+                }
+            })
+            .collect();
 
-        if self.mode == Mode::Insert(self.list.items.len() as i32) {
-            items.push(ListItem::new(Line::styled(
-                self.input.clone(),
-                Style::default(),
-            )));
+        match self.mode {
+            Mode::Insert(target) => {
+                items.insert(target, ListItem::new(self.input.clone()));
+                self.list.state.select(Some(target));
+            }
+            Mode::Edit(target) => {
+                items[target] = ListItem::new(self.input.clone());
+                self.list.state.select(Some(target));
+            }
+            _ => {}
         }
 
         let items = List::new(items)
             .block(block)
-            .highlight_style(self.config.styles[&StyleName::Selected]);
+            .highlight_style(selected_style);
 
         frame.render_stateful_widget(items, area, &mut self.list.state);
-        if let Mode::Insert(line) = self.mode {
-            frame.set_cursor(
-                area.x + 1 + self.character_index as u16,
-                area.y + line as u16 + 1,
-            );
-        }
-
-        if let Mode::Edit(line) = self.mode {
+        if let Mode::Edit(line) | Mode::Insert(line) = self.mode {
             frame.set_cursor(
                 area.x + 1 + self.character_index as u16,
                 area.y + line as u16 + 1,
