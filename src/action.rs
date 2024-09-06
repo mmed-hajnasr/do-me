@@ -46,6 +46,7 @@ pub enum Action {
     HighlightTask(String),
     MoveFocusRight,
     MoveFocusLeft,
+    ToggleTaskCheckbox,
 }
 
 impl Action {

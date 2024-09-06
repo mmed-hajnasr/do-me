@@ -321,6 +321,7 @@ pub enum StyleName {
     Selected,
     Error,
     Info,
+    Completed,
 }
 
 #[derive(Clone, Debug, Default, Deref, DerefMut)]

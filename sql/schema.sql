@@ -54,13 +54,15 @@ BEGIN
   SET task_order = task_order - 1
   WHERE NEW.task_order > OLD.task_order
   AND task_order > OLD.task_order
-  AND task_order <= NEW.task_order;
+  AND task_order <= NEW.task_order
+  AND workspaceid == NEW.workspaceid;
 
   UPDATE Task
   SET task_order = task_order + 1
   WHERE NEW.task_order < OLD.task_order
   AND task_order < OLD.task_order
-  AND task_order >= NEW.task_order;
+  AND task_order >= NEW.task_order
+  AND workspaceid == NEW.workspaceid;
 
   UPDATE trigger_control SET active = 0;
 END;
@@ -72,7 +74,7 @@ WHEN NEW.task_order IS NULL AND (SELECT active FROM trigger_control) = 0
 BEGIN
   UPDATE trigger_control SET active = 1;
   UPDATE Task
-  SET task_order = (SELECT COALESCE(MAX(task_order), -1) + 1 FROM Task)
+  SET task_order = (SELECT COALESCE(MAX(task_order), -1) + 1 FROM Task WHERE workspaceid = NEW.workspaceid)
   WHERE id = NEW.id;
   UPDATE trigger_control SET active = 0;
 END;
@@ -98,7 +100,8 @@ BEGIN
   UPDATE trigger_control SET active = 1;
   UPDATE Task
   SET task_order = task_order - 1
-  WHERE task_order > OLD.task_order;
+  WHERE task_order > OLD.task_order
+  AND workspaceid == OLD.workspaceid;
   UPDATE trigger_control SET active = 0;
 END;
 

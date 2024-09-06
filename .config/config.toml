@@ -18,9 +18,10 @@
 "<shift-k>" = "MoveItemUp"          # Move the current item up
 "<ctrl-shift-k>" = "MoveItemTop"    # Move the current item to the top
 "<ctrl-shift-j>" = "MoveItemBottom" # Move the current item to the bottom
+"x" = "ToggleTaskCheckbox"
 [styles]
 "Highlight" = "cyan"
 "Selected" = "bold"
 "Normal" = ""
 "Error" = "red"
-"Info" = "green"
+"Completed" = "green"

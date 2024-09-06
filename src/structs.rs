@@ -13,6 +13,15 @@ pub struct Task {
     pub workspace_id: i32,
 }
 
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct Workspace {
+    pub id: i32,
+    pub name: String,
+    pub order: usize,
+    pub create_date: NaiveDateTime,
+    pub update_date: NaiveDateTime,
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum TaskSorter {
     Priority(bool),
@@ -67,6 +76,7 @@ impl WorkspaceSorter {
         workspaces.sort_by(cmp_func);
     }
 }
+
 impl TaskSorter {
     pub fn sort(&self, tasks: &mut [Task]) {
         let cmp_func = match self {
@@ -94,15 +104,6 @@ impl TaskSorter {
         };
         tasks.sort_by(cmp_func);
     }
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-pub struct Workspace {
-    pub id: i32,
-    pub name: String,
-    pub order: usize,
-    pub create_date: NaiveDateTime,
-    pub update_date: NaiveDateTime,
 }
 
 #[derive(Default, Debug, Serialize, Clone, PartialEq, Deserialize, Eq)]
