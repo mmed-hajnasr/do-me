@@ -82,7 +82,7 @@ mod test_database_opearations {
                     target_tasks
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i , name.clone()))
+                        .map(|(i, name)| (i, name.clone()))
                         .collect::<Vec<(usize, String)>>()
                 );
             }
@@ -97,7 +97,7 @@ mod test_database_opearations {
                     .unwrap();
                 db.handle_update_task(UpdateTask {
                     id,
-                    order: Some(to ),
+                    order: Some(to),
                     ..Default::default()
                 })
                 .unwrap();
@@ -111,7 +111,7 @@ mod test_database_opearations {
                     target_tasks
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i , name.clone()))
+                        .map(|(i, name)| (i, name.clone()))
                         .collect::<Vec<(usize, String)>>()
                 );
             }
@@ -152,7 +152,7 @@ mod test_database_opearations {
                     target_tasks
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i , name.clone()))
+                        .map(|(i, name)| (i, name.clone()))
                         .collect::<Vec<(usize, String)>>()
                 );
             }
@@ -173,7 +173,7 @@ mod test_database_opearations {
                     target_tasks
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i , name.clone()))
+                        .map(|(i, name)| (i, name.clone()))
                         .collect::<Vec<(usize, String)>>()
                 );
             }
@@ -209,7 +209,7 @@ mod test_database_opearations {
                 target_workspaces
                     .iter()
                     .enumerate()
-                    .map(|(i, name)| (i , name.clone()))
+                    .map(|(i, name)| (i, name.clone()))
                     .collect::<Vec<(usize, String)>>()
             );
 
@@ -229,7 +229,7 @@ mod test_database_opearations {
                     target_workspaces
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i , name.clone()))
+                        .map(|(i, name)| (i, name.clone()))
                         .collect::<Vec<(usize, String)>>()
                 );
             }
@@ -260,7 +260,7 @@ mod test_database_opearations {
                 target_workspaces
                     .iter()
                     .enumerate()
-                    .map(|(i, name)| (i , name.clone()))
+                    .map(|(i, name)| (i, name.clone()))
                     .collect::<Vec<(usize, String)>>()
             );
 
@@ -271,7 +271,7 @@ mod test_database_opearations {
                 target_workspaces.insert(order, workspace_name.clone());
                 db.handle_add_workspace(AddWorkspace {
                     name: workspace_name.clone(),
-                    order: Some(order ),
+                    order: Some(order),
                 })
                 .unwrap();
 
@@ -281,7 +281,7 @@ mod test_database_opearations {
                     target_workspaces
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i , name.clone()))
+                        .map(|(i, name)| (i, name.clone()))
                         .collect::<Vec<(usize, String)>>()
                 );
             }
@@ -296,7 +296,7 @@ mod test_database_opearations {
                     .unwrap();
                 db.handle_update_workspace(UpdateWorkspace {
                     id,
-                    order: Some(to ),
+                    order: Some(to),
                     ..Default::default()
                 })
                 .unwrap();
@@ -310,7 +310,7 @@ mod test_database_opearations {
                     target_workspaces
                         .iter()
                         .enumerate()
-                        .map(|(i, name)| (i , name.clone()))
+                        .map(|(i, name)| (i, name.clone()))
                         .collect::<Vec<(usize, String)>>(),
                     "Failed at iteration: {} transfer {} to {}",
                     i,
