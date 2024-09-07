@@ -38,7 +38,7 @@ pub enum Action {
     RemoveWorkspace(i32),
     RequestTasksData(i32),
     RequestWorkspacesData,
-    NewTasksData((Vec<Task>,i32)),
+    NewTasksData((Vec<Task>, i32)),
     NewWorkspacesData(Vec<Workspace>),
     SelectWorkspace(i32),
     UnselectWorkspace,
@@ -46,7 +46,10 @@ pub enum Action {
     HighlightTask(String),
     MoveFocusRight,
     MoveFocusLeft,
-    ToggleTaskCheckbox,
+    ToggleCompletion,
+    EditDescription,
+    IncreasePriority,
+    DecreasePriority,
 }
 
 impl Action {
@@ -55,24 +58,35 @@ impl Action {
             Action::AddTask(_) | Action::UpdateTask(_) | Action::RemoveTask(_) => {
                 ComponentId::DatabaseSetTasks
             }
+
             Action::AddWorkspace(_) | Action::UpdateWorkspace(_) | Action::RemoveWorkspace(_) => {
                 ComponentId::DatabaseSetWorkspaces
             }
+
             Action::RequestTasksData(_) | Action::RequestWorkspacesData => ComponentId::DatabaseGet,
+
             Action::NewTasksData(_) | Action::HighlightTask(_) => ComponentId::Tasks,
+
             Action::NewWorkspacesData(_) | Action::HighlightWorkspace(_) => ComponentId::Workspaces,
-            Action::GoUp | Action::GoDown | Action::GoToTop | Action::GoToBottom => {
-                ComponentId::Focused
-            }
-            Action::AddItemAfter
+
+            Action::GoUp
+            | Action::GoDown
+            | Action::GoToTop
+            | Action::GoToBottom
+            | Action::AddItemAfter
             | Action::AddItemBefore
             | Action::DeleteItem
-            | Action::EditItem => ComponentId::Focused,
-            Action::MoveItemUp
+            | Action::EditDescription
+            | Action::ToggleCompletion
+            | Action::IncreasePriority
+            | Action::DecreasePriority
+            | Action::EditItem
+            | Action::MoveItemUp
             | Action::MoveItemDown
             | Action::MoveItemTop
-            | Action::MoveItemBottom => ComponentId::Focused,
-            Action::SendKeyEvent(..) => ComponentId::Focused,
+            | Action::MoveItemBottom
+            | Action::SendKeyEvent(..) => ComponentId::Focused,
+
             _ => ComponentId::All,
         }
     }

@@ -382,7 +382,9 @@ impl Component for WorkspacesComponent {
 
         let items = List::new(items)
             .block(block)
-            .highlight_style(selected_style);
+            .highlight_style(selected_style)
+            .highlight_symbol(">>")
+            .highlight_spacing(HighlightSpacing::Always);
 
         frame.render_stateful_widget(items, area, &mut self.list.state);
         if let Mode::Edit(line) | Mode::Insert(line) = self.mode {

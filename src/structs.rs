@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct Task {
     pub id: i32,
     pub name: String,
-    pub description: Option<String>,
+    pub description: String,
     pub priority: i32,
     pub completed: bool,
     pub create_date: NaiveDateTime,

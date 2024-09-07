@@ -18,10 +18,17 @@
 "<shift-k>" = "MoveItemUp"          # Move the current item up
 "<ctrl-shift-k>" = "MoveItemTop"    # Move the current item to the top
 "<ctrl-shift-j>" = "MoveItemBottom" # Move the current item to the bottom
-"x" = "ToggleTaskCheckbox"
+"<x>" = "ToggleCompletion"          # Toggle a task as completed or not
+"<shift-e>" = "EditDescription"     # Edit the description of the current item
+"<=>" = "IncreasePriority"          # Increase the priority of the current item
+"<->" = "DecreasePriority"          # Decrease the priority of the current item
 [styles]
 "Highlight" = "cyan"
 "Selected" = "bold"
 "Normal" = ""
 "Error" = "red"
 "Completed" = "green"
+"Priority1" = "bold red"
+"Priority2" = "bold yellow"
+"Priority3" = ""
+"Priority4" = "blue"

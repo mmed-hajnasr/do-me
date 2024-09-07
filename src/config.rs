@@ -322,6 +322,10 @@ pub enum StyleName {
     Error,
     Info,
     Completed,
+    Priority1,
+    Priority2,
+    Priority3,
+    Priority4,
 }
 
 #[derive(Clone, Debug, Default, Deref, DerefMut)]

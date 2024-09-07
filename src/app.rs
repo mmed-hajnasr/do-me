@@ -302,7 +302,11 @@ impl App {
                             return Err(e);
                         }
                     }
-                    self.action_tx.send(Action::RequestWorkspacesData)?;
+                    self.action_tx.send(Action::RequestTasksData(
+                        self.selected_workspace.expect(
+                            "updating a task with nothing selected this can't happen right",
+                        ),
+                    ))?;
                 }
                 ComponentId::DatabaseSetWorkspaces => {
                     if let Err(e) = self.database.handle_update_actions(action.clone()) {
@@ -320,7 +324,8 @@ impl App {
                 ComponentId::DatabaseGet => match action {
                     Action::RequestTasksData(workspace_id) => {
                         let tasks = self.database.get_tasks(workspace_id)?;
-                        self.action_tx.send(Action::NewTasksData((tasks,workspace_id)))?;
+                        self.action_tx
+                            .send(Action::NewTasksData((tasks, workspace_id)))?;
                     }
                     Action::RequestWorkspacesData => {
                         let workspaces = self.database.get_workspaces()?;

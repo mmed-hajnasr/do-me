@@ -25,7 +25,7 @@ impl DatabaseOperations {
     }
 
     pub fn handle_add_task(&self, info: AddTask) -> Result<()> {
-        const ADD_TASK_QUERY: &str = "INSERT INTO Task (name, description, priority, task_order, workspaceid) VALUES (?, ?, COALESCE(?, 3), ?, ?)";
+        const ADD_TASK_QUERY: &str = "INSERT INTO Task (name, description, priority, task_order, workspaceid) VALUES (?, COALESCE(?, ''), COALESCE(?, 3), ?, ?)";
         match self.conn.execute(
             ADD_TASK_QUERY,
             params![

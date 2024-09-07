@@ -7,7 +7,10 @@ use crate::{
 use color_eyre::{eyre::Ok, Result};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{prelude::*, widgets::*};
-use std::{cmp::min, collections::HashMap};
+use std::{
+    cmp::{max, min},
+    collections::HashMap,
+};
 use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Default, Debug)]
@@ -32,6 +35,7 @@ enum Mode {
     Normal,
     Insert(usize),
     Edit(usize),
+    EditDescription(usize),
 }
 
 #[derive(Default, Debug)]
@@ -45,8 +49,31 @@ impl Task {
         &self,
         config: &Config,
         highlighting: &(Option<usize>, String),
-        overide_name: Option<String>,
+        override_name: Option<String>,
+        override_desc: Option<String>,
     ) -> Row {
+        let prioritys = vec![
+            Cell::from(
+                Text::raw("1")
+                    .style(config.styles[&StyleName::Priority1])
+                    .alignment(Alignment::Center),
+            ),
+            Cell::from(
+                Text::raw("2")
+                    .style(config.styles[&StyleName::Priority2])
+                    .alignment(Alignment::Center),
+            ),
+            Cell::from(
+                Text::raw("3")
+                    .style(config.styles[&StyleName::Priority3])
+                    .alignment(Alignment::Center),
+            ),
+            Cell::from(
+                Text::raw("4")
+                    .style(config.styles[&StyleName::Priority4])
+                    .alignment(Alignment::Center),
+            ),
+        ];
         let error_style = config.styles[&StyleName::Error];
         let completed_style = config.styles[&StyleName::Completed];
         let check_cell = if self.completed {
@@ -54,7 +81,8 @@ impl Task {
         } else {
             Cell::from(" ☐")
         };
-        let name = overide_name.unwrap_or(self.name.clone());
+        let name = override_name.unwrap_or(self.name.clone());
+        let description = override_desc.unwrap_or(self.description.clone());
         let mut name_cell = if self.completed {
             Cell::from(name).style(completed_style)
         } else {
@@ -67,8 +95,8 @@ impl Task {
         Row::new(vec![
             check_cell,
             name_cell,
-            Cell::from(Text::raw(self.priority.to_string()).alignment(Alignment::Center)),
-            self.description.clone().unwrap_or_default().into(),
+            prioritys[self.priority as usize - 1].clone(),
+            description.into(),
         ])
     }
 }
@@ -187,8 +215,51 @@ impl TasksComponent {
                 self.character_index = 0;
                 self.mode = Mode::Normal;
             }
+            Mode::EditDescription(target) => {
+                let t = UpdateTask {
+                    id: self.list.items[target].id,
+                    description: Some(self.input.trim().to_string()),
+                    ..Default::default()
+                };
+                command_tx.send(Action::UpdateTask(t))?;
+                command_tx.send(Action::LeaveInsertMode)?;
+                self.to_be_selected = Some(target);
+                self.input.clear();
+                self.character_index = 0;
+                self.mode = Mode::Normal;
+            }
             _ => unreachable!(),
         };
+        Ok(())
+    }
+
+    fn increase_priority(&self) -> Result<()> {
+        if let Some(selected) = self.list.state.selected() {
+            let t = UpdateTask {
+                id: self.list.items[selected].id,
+                priority: Some(min(self.list.items[selected].priority + 1, 4)),
+                ..Default::default()
+            };
+            self.command_tx
+                .as_ref()
+                .unwrap()
+                .send(Action::UpdateTask(t))?;
+        }
+        Ok(())
+    }
+
+    fn decrease_priority(&self) -> Result<()> {
+        if let Some(selected) = self.list.state.selected() {
+            let t = UpdateTask {
+                id: self.list.items[selected].id,
+                priority: Some(max(self.list.items[selected].priority - 1, 1)),
+                ..Default::default()
+            };
+            self.command_tx
+                .as_ref()
+                .unwrap()
+                .send(Action::UpdateTask(t))?;
+        }
         Ok(())
     }
 
@@ -257,7 +328,13 @@ impl Component for TasksComponent {
                 let mut iter = self.list.items.iter();
                 if let Some(mut last_order) = iter.next().map(|t| t.order) {
                     for task in iter {
-                        assert!(task.order == last_order + 1, "the order is not as expected");
+                        assert!(
+                            task.order == last_order + 1,
+                            "the order is not as expected at workspace {} because we found orders:{},{}",
+                            workspace_id,
+                            task.order,
+                            last_order
+                        );
                         last_order = task.order;
                     }
                 }
@@ -300,6 +377,12 @@ impl Component for TasksComponent {
             Action::GoToBottom => {
                 self.select_bottom();
             }
+            Action::IncreasePriority => {
+                self.increase_priority()?;
+            }
+            Action::DecreasePriority => {
+                self.decrease_priority()?;
+            }
             Action::SendKeyEvent(key) => {
                 assert_ne!(
                     self.mode,
@@ -309,6 +392,9 @@ impl Component for TasksComponent {
                 self.handle_insert_mode(key)?;
             }
             Action::AddItemAfter => {
+                if self.selected_workspace.is_none() {
+                    return Ok(());
+                }
                 if let Some(selected) = self.list.state.selected() {
                     self.mode = Mode::Insert(selected + 1);
                 } else {
@@ -317,6 +403,9 @@ impl Component for TasksComponent {
                 command_tx.send(Action::EnterInsertMode)?;
             }
             Action::AddItemBefore => {
+                if self.selected_workspace.is_none() {
+                    return Ok(());
+                }
                 if let Some(selected) = self.list.state.selected() {
                     self.mode = Mode::Insert(selected);
                 } else {
@@ -324,12 +413,21 @@ impl Component for TasksComponent {
                 }
                 command_tx.send(Action::EnterInsertMode)?;
             }
-            Action::ToggleTaskCheckbox => {
+            Action::ToggleCompletion => {
                 self.mark_task();
             }
             Action::DeleteItem => {
                 if let Some(selected) = self.list.state.selected() {
                     command_tx.send(Action::RemoveTask(self.list.items[selected].id))?;
+                }
+            }
+            Action::EditDescription => {
+                if let Some(selected) = self.list.state.selected() {
+                    let t = &self.list.items[selected];
+                    self.mode = Mode::EditDescription(selected);
+                    self.input.clone_from(&t.description);
+                    self.character_index = self.input.len();
+                    command_tx.send(Action::EnterInsertMode)?;
                 }
             }
             Action::EditItem => {
@@ -408,8 +506,6 @@ impl Component for TasksComponent {
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
         let selected_style = self.config.styles[&StyleName::Selected];
-        let error_style = self.config.styles[&StyleName::Error];
-        let completed_style = self.config.styles[&StyleName::Completed];
         let block_style = if self.is_focused {
             self.config.styles[&StyleName::Highlight]
         } else {
@@ -419,7 +515,7 @@ impl Component for TasksComponent {
         let block = Block::default()
             .title("Tasks")
             .border_style(block_style)
-            .border_type(BorderType::Rounded)
+            .border_type(BorderType::Thick)
             .borders(Borders::ALL);
 
         if self.selected_workspace.is_none() {
@@ -430,8 +526,7 @@ impl Component for TasksComponent {
             return Ok(());
         }
 
-        let mut columns_sizes: (u16, u16, u16) = (self.input.len() as u16, 8, 11);
-        columns_sizes.0 = columns_sizes.0.max(4);
+        let mut columns_sizes: (u16, u16, u16) = (4, 8, 11);
         let mut items: Vec<Row> = self
             .list
             .items
@@ -439,15 +534,18 @@ impl Component for TasksComponent {
             .map(|t| {
                 columns_sizes.0 = columns_sizes.0.max(t.name.len() as u16);
                 columns_sizes.1 = columns_sizes.1.max(t.priority.to_string().len() as u16);
-                columns_sizes.2 = columns_sizes.2.max(
-                    t.description
-                        .as_ref()
-                        .map(|d| d.len() as u16)
-                        .unwrap_or_default(),
-                );
-                t.to_row(&self.config, &self.highlighted_item, None)
+                columns_sizes.2 = columns_sizes.2.max(t.description.len() as u16);
+                t.to_row(&self.config, &self.highlighted_item, None, None)
             })
             .collect();
+
+        let cursor_offset = if matches!(self.mode, Mode::EditDescription(..)) {
+            columns_sizes.2 = columns_sizes.2.max(self.input.len() as u16);
+            7 + columns_sizes.0 + columns_sizes.1
+        } else {
+            columns_sizes.0 = columns_sizes.0.max(self.input.len() as u16);
+            5
+        };
 
         match self.mode {
             Mode::Insert(target) => {
@@ -467,6 +565,16 @@ impl Component for TasksComponent {
                     &self.config,
                     &self.highlighted_item,
                     Some(self.input.clone()),
+                    None,
+                );
+                self.list.state.select(Some(target));
+            }
+            Mode::EditDescription(target) => {
+                items[target] = self.list.items[target].to_row(
+                    &self.config,
+                    &self.highlighted_item,
+                    None,
+                    Some(self.input.clone()),
                 );
                 self.list.state.select(Some(target));
             }
@@ -483,15 +591,19 @@ impl Component for TasksComponent {
         let table = Table::new(items, widths)
             .block(block)
             .highlight_style(selected_style)
+            .highlight_symbol(">>")
+            .highlight_spacing(HighlightSpacing::Always)
             .header(
                 Row::new(vec!["", "Name", "Priority", "Description"])
-                    .style(Style::default().add_modifier(Modifier::REVERSED)),
+                    .style(block_style)
+                    .add_modifier(Modifier::REVERSED)
+                    .add_modifier(Modifier::BOLD),
             );
 
         frame.render_stateful_widget(table, area, &mut self.list.state);
-        if let Mode::Insert(line) | Mode::Edit(line) = self.mode {
+        if let Mode::Insert(line) | Mode::Edit(line) | Mode::EditDescription(line) = self.mode {
             frame.set_cursor(
-                area.x + 5 + self.character_index as u16,
+                area.x + self.character_index as u16 + cursor_offset,
                 area.y + line as u16 + 2,
             );
         }
