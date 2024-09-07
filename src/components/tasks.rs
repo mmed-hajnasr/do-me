@@ -106,6 +106,17 @@ impl TasksComponent {
         Self::default()
     }
 
+    fn secure_selction(&mut self) {
+        if let Some(index) = self.list.state.selected() {
+            if self.list.items.is_empty() {
+                self.list.state.select(None);
+            } else {
+                let index = min(index, self.list.items.len() - 1);
+                self.list.state.select(Some(index));
+            }
+        }
+    }
+
     fn mark_task(&mut self) {
         if let Some(selected) = self.list.state.selected() {
             let t = UpdateTask {
@@ -284,6 +295,7 @@ impl TasksComponent {
                 self.input.clear();
                 self.character_index = 0;
                 self.mode = Mode::Normal;
+                self.secure_selction();
             }
             KeyCode::Left => {
                 if self.character_index > 0 {
@@ -357,6 +369,7 @@ impl Component for TasksComponent {
                     // making sure no out of bounds
                     *selected = min(*selected, self.list.items.len() - 1);
                 }
+
                 self.on_select();
             }
             Action::UnselectWorkspace => {
@@ -492,7 +505,7 @@ impl Component for TasksComponent {
                 if let Some(selected) = self.list.state.selected() {
                     let t = UpdateTask {
                         id: self.list.items[selected].id,
-                        order: Some(self.list.items.len()),
+                        order: Some(self.list.items.len() - 1),
                         ..Default::default()
                     };
                     command_tx.send(Action::UpdateTask(t))?;
@@ -541,10 +554,10 @@ impl Component for TasksComponent {
 
         let cursor_offset = if matches!(self.mode, Mode::EditDescription(..)) {
             columns_sizes.2 = columns_sizes.2.max(self.input.len() as u16);
-            7 + columns_sizes.0 + columns_sizes.1
+            9 + columns_sizes.0 + columns_sizes.1
         } else {
             columns_sizes.0 = columns_sizes.0.max(self.input.len() as u16);
-            5
+            7
         };
 
         match self.mode {

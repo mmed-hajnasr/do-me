@@ -389,7 +389,7 @@ impl Component for WorkspacesComponent {
         frame.render_stateful_widget(items, area, &mut self.list.state);
         if let Mode::Edit(line) | Mode::Insert(line) = self.mode {
             frame.set_cursor(
-                area.x + 1 + self.character_index as u16,
+                area.x + 3 + self.character_index as u16,
                 area.y + line as u16 + 1,
             );
         }
