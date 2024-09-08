@@ -6,8 +6,8 @@
 [keybindings.Navigation]
 "<j>" = "GoDown"                    # Move the cursor down
 "<k>" = "GoUp"                      # Move the cursor up
-"<h>" = "MoveFocusLeft"             # Move the focus to the left
-"<l>" = "MoveFocusRight"            # Move the focus to the right
+"<h>" = "FocusOnWorkspaces"         # Focus on workspaces
+"<l>" = "FocusOnTasks"              # Focus on tasks
 "<shift-g>" = "GoToTop"             # Move the cursor to the top
 "<g><g>" = "GoToBottom"             # Move the cursor to the bottom
 "<i>" = "AddItemBefore"             # Add an item before the current one
@@ -21,14 +21,20 @@
 "<x>" = "ToggleCompletion"          # Toggle a task as completed or not
 "<shift-e>" = "EditDescription"     # Edit the description of the current item
 "<=>" = "IncreasePriority"          # Increase the priority of the current item
+"<+>" = "IncreasePriority"          # Increase the priority of the current item
 "<->" = "DecreasePriority"          # Decrease the priority of the current item
+"<_>" = "DecreasePriority"          # Decrease the priority of the current item
+"s" = "OpenSortMenu"                # Open the sort menu
+"<Esc>" = "Cancel"                  # Cancel the current operation
+"<Enter>" = "Select"                # Submit the current operation
+"<!>" = "ToggleSortDirection"       # Toggle the sort direction
 [styles]
-"Highlight" = "cyan"
-"Selected" = "bold"
+"Highlight" = "color14"
+"Selected" = "bold on color10"
 "Normal" = ""
 "Error" = "red"
 "Completed" = "green"
 "Priority1" = "bold red"
 "Priority2" = "bold yellow"
 "Priority3" = ""
-"Priority4" = "blue"
+"Priority4" = "color8"

@@ -22,7 +22,6 @@ pub struct TasksComponent {
     input: String,
     character_index: usize,
     mode: Mode,
-    sorter: TaskSorter,
     is_focused: bool,
     highlighted_item: (Option<usize>, String),
     to_be_selected: Option<usize>,
@@ -54,22 +53,22 @@ impl Task {
     ) -> Row {
         let prioritys = vec![
             Cell::from(
-                Text::raw("1")
+                Text::raw("A")
                     .style(config.styles[&StyleName::Priority1])
                     .alignment(Alignment::Center),
             ),
             Cell::from(
-                Text::raw("2")
+                Text::raw("B")
                     .style(config.styles[&StyleName::Priority2])
                     .alignment(Alignment::Center),
             ),
             Cell::from(
-                Text::raw("3")
+                Text::raw("C")
                     .style(config.styles[&StyleName::Priority3])
                     .alignment(Alignment::Center),
             ),
             Cell::from(
-                Text::raw("4")
+                Text::raw("D")
                     .style(config.styles[&StyleName::Priority4])
                     .alignment(Alignment::Center),
             ),
@@ -244,7 +243,7 @@ impl TasksComponent {
         Ok(())
     }
 
-    fn increase_priority(&self) -> Result<()> {
+    fn decrease_priority(&self) -> Result<()> {
         if let Some(selected) = self.list.state.selected() {
             let t = UpdateTask {
                 id: self.list.items[selected].id,
@@ -259,7 +258,7 @@ impl TasksComponent {
         Ok(())
     }
 
-    fn decrease_priority(&self) -> Result<()> {
+    fn increase_priority(&self) -> Result<()> {
         if let Some(selected) = self.list.state.selected() {
             let t = UpdateTask {
                 id: self.list.items[selected].id,
@@ -334,7 +333,7 @@ impl Component for TasksComponent {
         match action {
             Action::NewTasksData((tasks, workspace_id)) => {
                 self.list.items = tasks;
-                self.sorter.sort(&mut self.list.items);
+                TaskSorter::default().sort(&mut self.list.items);
 
                 // making sure the database is not fucking up the order(again).
                 let mut iter = self.list.items.iter();
@@ -371,6 +370,19 @@ impl Component for TasksComponent {
                 }
 
                 self.on_select();
+            }
+            Action::SortTasks(sorter) => {
+                let mut items = self.list.items.clone();
+                sorter.sort(&mut items);
+                for (new_order, item) in items.iter().enumerate() {
+                    let t = UpdateTask {
+                        id: item.id,
+                        order: Some(new_order),
+                        ..Default::default()
+                    };
+                    command_tx.send(Action::UpdateTask(t))?;
+                }
+                self.secure_selction();
             }
             Action::UnselectWorkspace => {
                 self.list.items.clear();

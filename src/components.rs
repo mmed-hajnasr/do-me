@@ -5,6 +5,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{action::Action, config::Config};
 
 pub mod fps;
+pub mod sort_menu;
 pub mod tasks;
 pub mod workspaces;
 

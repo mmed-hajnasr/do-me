@@ -7,7 +7,7 @@ mod test_database_opearations {
     use rand::{Rng, SeedableRng};
     const SEEDS: [u64; 5] = [432, 1323, 9923, 1425, 8239];
     fn process_workspaces(workspaces: &mut [Workspace]) -> Vec<(usize, String)> {
-        let sorter = WorkspaceSorter::Order(true);
+        let sorter = WorkspaceSorter::default();
         sorter.sort(workspaces);
         return workspaces
             .iter()
@@ -16,7 +16,7 @@ mod test_database_opearations {
     }
 
     fn process_tasks(tasks: &mut [Task]) -> Vec<(usize, String)> {
-        let sorter = TaskSorter::Order(true);
+        let sorter = TaskSorter::default();
         sorter.sort(tasks);
         return tasks
             .iter()

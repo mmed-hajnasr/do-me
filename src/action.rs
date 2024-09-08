@@ -44,12 +44,20 @@ pub enum Action {
     UnselectWorkspace,
     HighlightWorkspace(String),
     HighlightTask(String),
-    MoveFocusRight,
-    MoveFocusLeft,
+    FocusOnTasks,
+    FocusOnWorkspaces,
     ToggleCompletion,
     EditDescription,
     IncreasePriority,
     DecreasePriority,
+    SortTasks(TaskSorter),
+    SortWorkspaces(WorkspaceSorter),
+    ToggleSortDirection,
+    Select,
+    ExitSortMenu(ComponentId),
+    SetupSortMenu(ComponentId),
+    Cancel,
+    OpenSortMenu,
 }
 
 impl Action {
@@ -87,7 +95,28 @@ impl Action {
             | Action::MoveItemBottom
             | Action::SendKeyEvent(..) => ComponentId::Focused,
 
-            _ => ComponentId::All,
+            Action::SortTasks(_) => ComponentId::Tasks,
+            Action::SortWorkspaces(_) => ComponentId::Workspaces,
+            Action::ToggleSortDirection | Action::SetupSortMenu(_) => ComponentId::SortMenu,
+            Action::Select | Action::Cancel => ComponentId::Focused,
+
+            Action::Tick
+            | Action::Render
+            | Action::Resize(..)
+            | Action::Suspend
+            | Action::Resume
+            | Action::Quit
+            | Action::ClearScreen
+            | Action::Error(_)
+            | Action::Help
+            | Action::LeaveInsertMode
+            | Action::EnterInsertMode
+            | Action::SelectWorkspace(_)
+            | Action::UnselectWorkspace
+            | Action::FocusOnTasks
+            | Action::FocusOnWorkspaces
+            | Action::ExitSortMenu(_)
+            | Action::OpenSortMenu => ComponentId::All,
         }
     }
 }

@@ -22,85 +22,78 @@ pub struct Workspace {
     pub update_date: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-pub enum TaskSorter {
-    Priority(bool),
-    Order(bool),
-    CreateDate(bool),
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct TaskSorter {
+    desc: bool,
+    sort_type: TaskSortType,
 }
 
-impl Default for TaskSorter {
-    fn default() -> Self {
-        TaskSorter::Order(true)
-    }
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub enum TaskSortType {
+    #[default]
+    Order,
+    Priority,
+    Completion,
+    CreateDate,
+    Name,
+    Description,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-pub enum WorkspaceSorter {
-    Order(bool),
-    CreateDate(bool),
-    UpdateDate(bool),
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct WorkspaceSorter {
+    desc: bool,
+    sort_type: WorkspaceSortType,
 }
 
-impl Default for WorkspaceSorter {
-    fn default() -> Self {
-        WorkspaceSorter::Order(true)
-    }
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub enum WorkspaceSortType {
+    #[default]
+    Order,
+    CreateDate,
+    UpdateDate,
+    Name,
 }
 
 impl WorkspaceSorter {
+    pub fn new(sort_type: WorkspaceSortType, desc: bool) -> Self {
+        Self { sort_type, desc }
+    }
     pub fn sort(&self, workspaces: &mut [Workspace]) {
-        let cmp_func = match self {
-            WorkspaceSorter::Order(asc) => {
-                if *asc {
-                    |a: &Workspace, b: &Workspace| a.order.cmp(&b.order)
-                } else {
-                    |a: &Workspace, b: &Workspace| b.order.cmp(&a.order)
-                }
+        let cmp_func = |a: &Workspace, b: &Workspace| {
+            let mut order = match self.sort_type {
+                WorkspaceSortType::Order => a.order.cmp(&b.order),
+                WorkspaceSortType::CreateDate => a.create_date.cmp(&b.create_date),
+                WorkspaceSortType::UpdateDate => a.update_date.cmp(&b.update_date),
+                WorkspaceSortType::Name => a.name.cmp(&b.name),
+            };
+            if self.desc {
+                order = order.reverse();
             }
-            WorkspaceSorter::CreateDate(asc) => {
-                if *asc {
-                    |a: &Workspace, b: &Workspace| a.create_date.cmp(&b.create_date)
-                } else {
-                    |a: &Workspace, b: &Workspace| b.create_date.cmp(&a.create_date)
-                }
-            }
-            WorkspaceSorter::UpdateDate(asc) => {
-                if *asc {
-                    |a: &Workspace, b: &Workspace| a.update_date.cmp(&b.update_date)
-                } else {
-                    |a: &Workspace, b: &Workspace| b.update_date.cmp(&a.update_date)
-                }
-            }
+            order.then(a.order.cmp(&b.order))
         };
         workspaces.sort_by(cmp_func);
     }
 }
 
 impl TaskSorter {
+    pub fn new(sort_type: TaskSortType, desc: bool) -> Self {
+        Self { sort_type, desc }
+    }
+
     pub fn sort(&self, tasks: &mut [Task]) {
-        let cmp_func = match self {
-            TaskSorter::Priority(asc) => {
-                if *asc {
-                    |a: &Task, b: &Task| a.priority.cmp(&b.priority)
-                } else {
-                    |a: &Task, b: &Task| b.priority.cmp(&a.priority)
-                }
+        let cmp_func = |a: &Task, b: &Task| {
+            let mut order = match self.sort_type {
+                TaskSortType::Priority => a.priority.cmp(&b.priority),
+                TaskSortType::Order => a.order.cmp(&b.order),
+                TaskSortType::CreateDate => a.create_date.cmp(&b.create_date),
+                TaskSortType::Name => a.name.cmp(&b.name),
+                TaskSortType::Description => a.description.cmp(&b.description),
+                TaskSortType::Completion => a.completed.cmp(&b.completed),
+            };
+            if self.desc {
+                order = order.reverse();
             }
-            TaskSorter::Order(asc) => {
-                if *asc {
-                    |a: &Task, b: &Task| a.order.cmp(&b.order)
-                } else {
-                    |a: &Task, b: &Task| b.order.cmp(&a.order)
-                }
-            }
-            TaskSorter::CreateDate(asc) => {
-                if *asc {
-                    |a: &Task, b: &Task| a.create_date.cmp(&b.create_date)
-                } else {
-                    |a: &Task, b: &Task| b.create_date.cmp(&a.create_date)
-                }
-            }
+            order.then(a.order.cmp(&b.order))
         };
         tasks.sort_by(cmp_func);
     }

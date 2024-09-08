@@ -1,7 +1,8 @@
 use crate::{
     action::Action,
     components::{
-        fps::FpsCounter, tasks::TasksComponent, workspaces::WorkspacesComponent, Component,
+        fps::FpsCounter, sort_menu::SortMenu, tasks::TasksComponent,
+        workspaces::WorkspacesComponent, Component,
     },
     config::Config,
     database_ops::DatabaseOperations,
@@ -44,6 +45,7 @@ pub enum ComponentId {
     DatabaseGet,
     DatabaseSetTasks,
     DatabaseSetWorkspaces,
+    SortMenu,
     All,
     Focused,
 }
@@ -67,6 +69,7 @@ impl App {
             Box::new(WorkspacesComponent::new()),
         );
         components.insert(ComponentId::Tasks, Box::new(TasksComponent::new()));
+        components.insert(ComponentId::SortMenu, Box::new(SortMenu::new()));
         Ok(Self {
             database: DatabaseOperations::new(config.config.data_dir.join("do_me.sqlite")),
             tick_rate,
@@ -249,7 +252,7 @@ impl App {
                         Action::Render => self.render(tui)?,
                         Action::EnterInsertMode => self.mode = Mode::Insert,
                         Action::LeaveInsertMode => self.mode = Mode::Navigation,
-                        Action::MoveFocusRight => {
+                        Action::FocusOnTasks => {
                             self.components
                                 .get_mut(&self.focused)
                                 .unwrap()
@@ -260,7 +263,7 @@ impl App {
                                 .unwrap()
                                 .focus(true)?;
                         }
-                        Action::MoveFocusLeft => {
+                        Action::FocusOnWorkspaces => {
                             self.components
                                 .get_mut(&self.focused)
                                 .unwrap()
@@ -268,6 +271,32 @@ impl App {
                             self.focused = ComponentId::Workspaces;
                             self.components
                                 .get_mut(&self.focused)
+                                .unwrap()
+                                .focus(true)?;
+                        }
+                        Action::OpenSortMenu => {
+                            if self.focused == ComponentId::SortMenu {
+                                self.action_tx.send(Action::Cancel)?;
+                                continue;
+                            }
+                            self.components
+                                .get_mut(&self.focused)
+                                .unwrap()
+                                .focus(false)?;
+                            let sort_menu =
+                                self.components.get_mut(&ComponentId::SortMenu).unwrap();
+                            sort_menu.update(Action::SetupSortMenu(self.focused))?;
+                            self.focused = ComponentId::SortMenu;
+                            sort_menu.focus(true)?;
+                        }
+                        Action::ExitSortMenu(component_id) => {
+                            self.components
+                                .get_mut(&ComponentId::SortMenu)
+                                .unwrap()
+                                .focus(false)?;
+                            self.focused = component_id;
+                            self.components
+                                .get_mut(&component_id)
                                 .unwrap()
                                 .focus(true)?;
                         }
@@ -372,6 +401,8 @@ impl App {
 
             let fps = self.components.get_mut(&ComponentId::FpsCounter).unwrap();
             let _ = fps.draw(frame, area);
+            let sort_menu = self.components.get_mut(&ComponentId::SortMenu).unwrap();
+            let _ = sort_menu.draw(frame, area);
         })?;
         Ok(())
     }
