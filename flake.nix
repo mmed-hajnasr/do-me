@@ -18,6 +18,8 @@
           overlays = [ rust-overlay.overlays.default self.overlays.default ];
         };
       });
+      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+      pkgsFor = nixpkgs.legacyPackages;
     in
     {
       overlays.default = final: prev: {
@@ -34,6 +36,10 @@
               extensions = [ "rust-src" "rustfmt" ];
             };
       };
+
+      packages = forAllSystems (system: {
+        default = pkgsFor.${system}.callPackage ./. { };
+      });
 
       devShells = forEachSupportedSystem ({ pkgs }: {
         default = pkgs.mkShell {
