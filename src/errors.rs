@@ -6,8 +6,8 @@ use tracing::error;
 
 #[derive(Debug)]
 pub enum DoMeError {
-    TaskNotFound(String),
-    WorkspaceNotFound(String),
+    // TaskNotFound(String),
+    // WorkspaceNotFound(String),
     TaskAlreadyExists(String),
     WorkspaceAlreadyExists(String),
 }
@@ -15,10 +15,10 @@ pub enum DoMeError {
 impl fmt::Display for DoMeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DoMeError::TaskNotFound(task) => write!(f, "The task {} was not found", task),
-            DoMeError::WorkspaceNotFound(workspace) => {
-                write!(f, "The workspace {} was not found", workspace)
-            }
+            // DoMeError::TaskNotFound(task) => write!(f, "The task {} was not found", task),
+            // DoMeError::WorkspaceNotFound(workspace) => {
+            //     write!(f, "The workspace {} was not found", workspace)
+            // }
             DoMeError::TaskAlreadyExists(task) => write!(f, "The task {} already exists", task),
             DoMeError::WorkspaceAlreadyExists(workspace) => {
                 write!(f, "The workspace {} already exists", workspace)

@@ -10,46 +10,46 @@ pub fn parse_datetime(row: &Row, index: usize) -> rusqlite::Result<NaiveDateTime
 }
 
 impl DatabaseOperations {
-    pub fn get_task(&self, id: i32) -> Result<Option<Task>> {
-        const GET_TASK_QUERY: &str = "SELECT name, task_order, description, priority, completed, create_date, workspaceid FROM Task WHERE id = ?";
-        match self.conn.query_row(GET_TASK_QUERY, params![id], |row| {
-            Ok(Task {
-                id,
-                name: row.get(0)?,
-                order: row.get(1)?,
-                description: row.get(2)?,
-                priority: row.get(3)?,
-                completed: row.get(4)?,
-                create_date: parse_datetime(row, 5)?,
-                workspace_id: row.get(6)?,
-            })
-        }) {
-            Ok(task) => Ok(Some(task)),
-            Err(Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(e.into()),
-        }
-    }
-
-    pub fn get_workspace(&self, id: i32) -> Result<Option<Workspace>> {
-        const GET_WORKSPACE_QUERY: &str =
-            "SELECT name, workspace_order, create_date, update_date FROM Workspace WHERE id = ?";
-        match self
-            .conn
-            .query_row(GET_WORKSPACE_QUERY, params![id], |row| {
-                Ok(Workspace {
-                    id,
-                    name: row.get(0)?,
-                    order: row.get(1)?,
-                    create_date: parse_datetime(row, 2)?,
-                    update_date: parse_datetime(row, 3)?,
-                })
-            }) {
-            Ok(workspace) => Ok(Some(workspace)),
-            Err(Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(e.into()),
-        }
-    }
-
+    // pub fn get_task(&self, id: i32) -> Result<Option<Task>> {
+    //     const GET_TASK_QUERY: &str = "SELECT name, task_order, description, priority, completed, create_date, workspaceid FROM Task WHERE id = ?";
+    //     match self.conn.query_row(GET_TASK_QUERY, params![id], |row| {
+    //         Ok(Task {
+    //             id,
+    //             name: row.get(0)?,
+    //             order: row.get(1)?,
+    //             description: row.get(2)?,
+    //             priority: row.get(3)?,
+    //             completed: row.get(4)?,
+    //             create_date: parse_datetime(row, 5)?,
+    //             workspace_id: row.get(6)?,
+    //         })
+    //     }) {
+    //         Ok(task) => Ok(Some(task)),
+    //         Err(Error::QueryReturnedNoRows) => Ok(None),
+    //         Err(e) => Err(e.into()),
+    //     }
+    // }
+    //
+    // pub fn get_workspace(&self, id: i32) -> Result<Option<Workspace>> {
+    //     const GET_WORKSPACE_QUERY: &str =
+    //         "SELECT name, workspace_order, create_date, update_date FROM Workspace WHERE id = ?";
+    //     match self
+    //         .conn
+    //         .query_row(GET_WORKSPACE_QUERY, params![id], |row| {
+    //             Ok(Workspace {
+    //                 id,
+    //                 name: row.get(0)?,
+    //                 order: row.get(1)?,
+    //                 create_date: parse_datetime(row, 2)?,
+    //                 update_date: parse_datetime(row, 3)?,
+    //             })
+    //         }) {
+    //         Ok(workspace) => Ok(Some(workspace)),
+    //         Err(Error::QueryReturnedNoRows) => Ok(None),
+    //         Err(e) => Err(e.into()),
+    //     }
+    // }
+    //
     pub fn get_tasks(&self, workspace_id: i32) -> Result<Vec<Task>> {
         const GET_TASKS_QUERY: &str = "SELECT id, name, task_order, description, priority, completed, create_date FROM Task WHERE workspaceid = ?;";
 

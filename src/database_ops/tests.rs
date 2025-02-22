@@ -9,19 +9,19 @@ mod test_database_opearations {
     fn process_workspaces(workspaces: &mut [Workspace]) -> Vec<(usize, String)> {
         let sorter = WorkspaceSorter::default();
         sorter.sort(workspaces);
-        return workspaces
+        workspaces
             .iter()
             .map(|workspace| (workspace.order, workspace.name.clone()))
-            .collect();
+            .collect()
     }
 
     fn process_tasks(tasks: &mut [Task]) -> Vec<(usize, String)> {
         let sorter = TaskSorter::default();
         sorter.sort(tasks);
-        return tasks
+        tasks
             .iter()
             .map(|task| (task.order, task.name.clone()))
-            .collect();
+            .collect()
     }
 
     #[test]

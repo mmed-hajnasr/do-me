@@ -399,8 +399,8 @@ impl App {
                 }
             }
 
-            let fps = self.components.get_mut(&ComponentId::FpsCounter).unwrap();
-            let _ = fps.draw(frame, area);
+            // let fps = self.components.get_mut(&ComponentId::FpsCounter).unwrap();
+            // let _ = fps.draw(frame, area);
             let sort_menu = self.components.get_mut(&ComponentId::SortMenu).unwrap();
             let _ = sort_menu.draw(frame, area);
         })?;
